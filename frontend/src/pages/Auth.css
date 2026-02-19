@@ -1,0 +1,139 @@
+.auth-page {
+  padding: 4rem 0;
+  min-height: calc(100vh - 200px);
+  display: flex;
+  align-items: center;
+}
+
+.auth-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  max-width: 1100px;
+  margin: 0 auto;
+  background: white;
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+}
+
+.auth-image {
+  background: linear-gradient(135deg, var(--forest-green), var(--ocean-blue));
+  padding: 4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.auth-image::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.1), transparent);
+  border-radius: 50%;
+}
+
+.auth-image-content {
+  position: relative;
+  z-index: 1;
+}
+
+.auth-image h2 {
+  color: white;
+  font-size: 2.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.auth-image p {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 1.125rem;
+  margin-bottom: 2.5rem;
+}
+
+.auth-features {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.feature {
+  color: white;
+  font-size: 1.05rem;
+  padding: 0.75rem 0;
+  border-left: 3px solid rgba(255, 255, 255, 0.5);
+  padding-left: 1.25rem;
+}
+
+.auth-form-container {
+  padding: 4rem;
+}
+
+.auth-form-container h1 {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+  color: var(--forest-green);
+}
+
+.auth-subtitle {
+  color: var(--earth-brown);
+  margin-bottom: 2.5rem;
+  font-size: 1.05rem;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.btn-block {
+  width: 100%;
+  margin-top: 1rem;
+}
+
+.auth-footer {
+  margin-top: 2rem;
+  text-align: center;
+  padding-top: 2rem;
+  border-top: 1px solid var(--light-gray);
+}
+
+.auth-footer p {
+  color: var(--charcoal);
+}
+
+.auth-footer a {
+  color: var(--forest-green);
+  font-weight: 600;
+}
+
+.auth-footer a:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 968px) {
+  .auth-container {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-image {
+    padding: 3rem 2rem;
+  }
+
+  .auth-image h2 {
+    font-size: 2rem;
+  }
+
+  .auth-form-container {
+    padding: 3rem 2rem;
+  }
+
+  .auth-form-container h1 {
+    font-size: 2rem;
+  }
+}
