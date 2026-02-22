@@ -62,8 +62,8 @@ const getItems = async (req, res) => {
     }
 
     const items = await Item.find(query)
-      .populate('donor', 'name email phone address')
-      .populate('receiver', 'name email phone')
+      .populate('donor', 'name email')  // Remove phone
+      .populate('receiver', 'name email')  // Remove phone
       .sort({ createdAt: -1 });
 
     res.json(items);
@@ -71,7 +71,6 @@ const getItems = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-
 // @desc    Get single item
 // @route   GET /api/items/:id
 // @access  Public
@@ -236,10 +235,10 @@ const donateItem = async (req, res) => {
 const getMyDonations = async (req, res) => {
   try {
     const items = await Item.find({ donor: req.user._id })
-      .populate('receiver', 'name email phone')
+      .populate('receiver', 'name email')  // Remove phone
       .populate({
         path: 'requests.user',
-        select: 'name email phone'
+        select: 'name email'  // Remove phone
       })
       .sort({ createdAt: -1 });
 

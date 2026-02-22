@@ -86,6 +86,155 @@
   justify-content: center;
 }
 
+/* ── Admin Chat Overlay (fixed, covers full screen) ── */
+.chat-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Admin Chat Modal ── */
+.admin-chat-modal {
+  position: relative;
+  width: 90%;
+  max-width: 650px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  z-index: 10000;
+  background: white;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.admin-chat-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #eee;
+  background: linear-gradient(135deg, #2e8b57, #3a9d6e);
+  color: white;
+  flex-shrink: 0;
+}
+
+.admin-chat-modal-header h3 {
+  color: white;
+  margin: 0 0 0.25rem 0;
+}
+
+.admin-chat-subtitle {
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.85);
+  margin: 0;
+}
+
+.admin-chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  background: #f8faf8;
+}
+
+.admin-chat-message {
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  max-width: 85%;
+}
+
+.admin-msg-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.3rem;
+  gap: 1rem;
+}
+
+.admin-msg-sender {
+  font-weight: 600;
+  font-size: 0.82rem;
+}
+
+.admin-msg-time {
+  font-size: 0.75rem;
+  color: #888;
+  white-space: nowrap;
+}
+
+.admin-msg-content {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+/* Bot messages — centered, green tint */
+.admin-msg-bot {
+  background: #e8f4e8;
+  border-left: 3px solid #2e8b57;
+  align-self: center;
+  max-width: 90%;
+}
+.admin-msg-bot .admin-msg-sender { color: #2e8b57; }
+
+/* Donor messages — left aligned, blue tint */
+.admin-msg-donor {
+  background: #e8f0fb;
+  border-left: 3px solid #3a7bd5;
+  align-self: flex-start;
+}
+.admin-msg-donor .admin-msg-sender { color: #3a7bd5; }
+
+/* Receiver messages — right aligned, amber tint */
+.admin-msg-receiver {
+  background: #fff8e6;
+  border-left: 3px solid #f0a500;
+  align-self: flex-end;
+}
+.admin-msg-receiver .admin-msg-sender { color: #c47f00; }
+
+.no-data {
+  text-align: center;
+  color: var(--earth-brown);
+  padding: 2rem;
+}
+
+.chats-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.chat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  gap: 1rem;
+}
+
+.chat-item h4 {
+  margin: 0 0 0.4rem 0;
+  color: var(--forest-green);
+  font-size: 1.1rem;
+}
+
+.chat-item p {
+  margin: 0.2rem 0;
+  font-size: 0.9rem;
+  color: var(--earth-brown);
+}
+
 @media (max-width: 768px) {
   .admin-tabs {
     flex-direction: column;
@@ -104,5 +253,19 @@
 
   .users-table {
     font-size: 0.875rem;
+  }
+
+  .admin-chat-modal {
+    width: 95%;
+    max-height: 90vh;
+  }
+
+  .chat-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .chat-item .btn {
+    width: 100%;
   }
 }

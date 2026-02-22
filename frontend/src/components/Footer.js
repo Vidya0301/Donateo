@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { FiHeart, FiMail, FiMapPin } from 'react-icons/fi';
+import { FiMail, FiMapPin } from 'react-icons/fi';
 import './Footer.css';
 
 const Footer = () => {
@@ -8,17 +8,6 @@ const Footer = () => {
     <footer className="footer">
       <div className="container">
         <div className="footer-content">
-          <div className="footer-section">
-            <div className="footer-logo">
-              <FiHeart className="footer-logo-icon" />
-              <span>Donateo</span>
-            </div>
-            <p className="footer-tagline">
-              Building a sustainable future through community sharing. 
-              Every item donated makes a difference.
-            </p>
-          </div>
-
           <div className="footer-section">
             <h4>Quick Links</h4>
             <ul>
@@ -34,7 +23,8 @@ const Footer = () => {
             <ul>
               <li><Link to="/register">Become a Donor</Link></li>
               <li><Link to="/register">Request Items</Link></li>
-              <li><Link to="/how-it-works">How It Works</Link></li>
+              <li><Link to="/donate">Donate Items</Link></li>
+              <li><Link to="/dashboard">My Dashboard</Link></li>
             </ul>
           </div>
 

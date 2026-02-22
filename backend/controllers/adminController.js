@@ -93,8 +93,8 @@ const getAllItems = async (req, res) => {
     }
 
     const items = await Item.find(query)
-      .populate('donor', 'name email phone')
-      .populate('receiver', 'name email phone')
+      .populate('donor', 'name email phone')  // Admin sees phone
+      .populate('receiver', 'name email phone')  // Admin sees phone
       .sort({ createdAt: -1 });
 
     res.json(items);

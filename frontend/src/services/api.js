@@ -56,4 +56,16 @@ export const adminAPI = {
   getStats: () => api.get('/admin/stats')
 };
 
+
+
+// Chat API
+export const chatAPI = {
+  createChat: (data) => api.post('/chat', data),
+  getMyChats: () => api.get('/chat/my'),
+  getChatById: (id) => api.get(`/chat/${id}`),
+  sendMessage: (id, content) => api.post(`/chat/${id}/message`, { content }),
+  updatePickupDetails: (id, details) => api.put(`/chat/${id}/pickup`, details),
+  getAllChats: () => api.get('/chat/admin/all')
+};
+
 export default api;

@@ -1,37 +1,52 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { adminAPI } from '../services/api';
 import { toast } from 'react-toastify';
 import { FiUsers, FiPackage, FiCheckCircle, FiXCircle, FiTrendingUp } from 'react-icons/fi';
 import './AdminPanel.css';
+import { chatAPI } from '../services/api';
 
 const AdminPanel = () => {
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
   const [items, setItems] = useState([]);
+  const [chats, setChats] = useState([]);
+  const [selectedChat, setSelectedChat] = useState(null);
+  const [selectedItemName, setSelectedItemName] = useState('');
+  const [showChat, setShowChat] = useState(false);
   const [activeTab, setActiveTab] = useState('pending');
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchData();
-  }, [activeTab]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const [statsRes, usersRes, itemsRes] = await Promise.all([
+      const promises = [
         adminAPI.getStats(),
         adminAPI.getUsers(),
         adminAPI.getItems({ status: activeTab === 'pending' ? 'pending' : undefined })
-      ]);
-      setStats(statsRes.data);
-      setUsers(usersRes.data);
-      setItems(itemsRes.data);
+      ];
+
+      if (activeTab === 'chats') {
+        promises.push(chatAPI.getAllChats());
+      }
+
+      const results = await Promise.all(promises);
+      setStats(results[0].data);
+      setUsers(results[1].data);
+      setItems(results[2].data);
+
+      if (activeTab === 'chats' && results[3]) {
+        setChats(results[3].data);
+      }
     } catch (error) {
       toast.error('Failed to load admin data');
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleApproveItem = async (itemId) => {
     try {
@@ -65,6 +80,26 @@ const AdminPanel = () => {
     }
   };
 
+  // Get sender label for admin view
+  const getSenderLabel = (msg, chat) => {
+    if (msg.isBot) return '🤖 Donateo Assistant';
+    if (!msg.sender) return 'Unknown';
+    const senderId = msg.sender._id || msg.sender;
+    if (senderId === (chat.donor._id || chat.donor)) return `Donor (${chat.donor.name})`;
+    if (senderId === (chat.receiver._id || chat.receiver)) return `Receiver (${chat.receiver.name})`;
+    return msg.sender.name || 'User';
+  };
+
+  const getSenderClass = (msg, chat) => {
+    if (msg.isBot) return 'admin-msg-bot';
+    const senderId = msg.sender?._id || msg.sender;
+    if (senderId === (chat.donor._id || chat.donor)) return 'admin-msg-donor';
+    if (senderId === (chat.receiver._id || chat.receiver)) return 'admin-msg-receiver';
+    return 'admin-msg-user';
+  };
+
+  const selectedChatData = chats.find(c => c._id === selectedChat);
+
   return (
     <div className="admin-page">
       <div className="container">
@@ -73,7 +108,6 @@ const AdminPanel = () => {
           <p>Manage users, items, and monitor platform activity</p>
         </div>
 
-        {/* Stats Overview */}
         {stats && (
           <div className="stats-grid">
             <div className="stat-card card">
@@ -110,29 +144,33 @@ const AdminPanel = () => {
           </div>
         )}
 
-        {/* Tabs */}
         <div className="admin-tabs">
-          <button 
+          <button
             className={`tab ${activeTab === 'pending' ? 'active' : ''}`}
             onClick={() => setActiveTab('pending')}
           >
             Pending Items ({items.filter(i => !i.isApproved).length})
           </button>
-          <button 
+          <button
             className={`tab ${activeTab === 'all' ? 'active' : ''}`}
             onClick={() => setActiveTab('all')}
           >
             All Items
           </button>
-          <button 
+          <button
             className={`tab ${activeTab === 'users' ? 'active' : ''}`}
             onClick={() => setActiveTab('users')}
           >
             Users ({users.length})
           </button>
+          <button
+            className={`tab ${activeTab === 'chats' ? 'active' : ''}`}
+            onClick={() => setActiveTab('chats')}
+          >
+            Chats ({chats.length})
+          </button>
         </div>
 
-        {/* Content */}
         {loading ? (
           <div className="spinner"></div>
         ) : activeTab === 'users' ? (
@@ -152,9 +190,7 @@ const AdminPanel = () => {
                   <tr key={user._id}>
                     <td>{user.name}</td>
                     <td>{user.email}</td>
-                    <td>
-                      <span className="role-badge">{user.role}</span>
-                    </td>
+                    <td><span className="role-badge">{user.role}</span></td>
                     <td>
                       <span className={`badge ${user.isActive ? 'badge-success' : 'badge-secondary'}`}>
                         {user.isActive ? 'Active' : 'Inactive'}
@@ -162,7 +198,7 @@ const AdminPanel = () => {
                     </td>
                     <td>
                       {user.role !== 'admin' && (
-                        <button 
+                        <button
                           onClick={() => handleToggleUser(user._id, user.isActive)}
                           className={`btn btn-sm ${user.isActive ? 'btn-outline' : 'btn-primary'}`}
                         >
@@ -175,6 +211,35 @@ const AdminPanel = () => {
               </tbody>
             </table>
           </div>
+        ) : activeTab === 'chats' ? (
+          <div className="chats-list">
+            {chats.length === 0 ? (
+              <p className="no-data">No chats found.</p>
+            ) : (
+              chats
+                .filter(chat => chat.item && chat.donor && chat.receiver)
+                .map(chat => (
+                  <div key={chat._id} className="chat-item card">
+                    <div>
+                      <h4>{chat.item.itemName}</h4>
+                      <p>Donor: {chat.donor.name} ({chat.donor.phone || 'N/A'})</p>
+                      <p>Receiver: {chat.receiver.name} ({chat.receiver.phone || 'N/A'})</p>
+                      <p>Messages: {chat.messages?.length || 0}</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setSelectedChat(chat._id);
+                        setSelectedItemName(chat.item.itemName);
+                        setShowChat(true);
+                      }}
+                      className="btn btn-primary"
+                    >
+                      View Chat
+                    </button>
+                  </div>
+                ))
+            )}
+          </div>
         ) : (
           <div className="items-list">
             {items.map(item => (
@@ -185,20 +250,20 @@ const AdminPanel = () => {
                   <p>{item.description}</p>
                   <div className="item-meta">
                     <span className="badge badge-info">{item.category}</span>
-                    <span>Donor: {item.donor.name}</span>
-                    <span>Location: {item.location.city}</span>
+                    <span>Donor: {item.donor?.name || 'N/A'}</span>
+                    <span>Location: {item.location?.city || 'N/A'}</span>
                   </div>
                 </div>
                 <div className="item-actions">
                   {!item.isApproved && (
-                    <button 
+                    <button
                       onClick={() => handleApproveItem(item._id)}
                       className="btn btn-primary"
                     >
                       <FiCheckCircle /> Approve
                     </button>
                   )}
-                  <button 
+                  <button
                     onClick={() => handleRemoveItem(item._id)}
                     className="btn btn-outline"
                   >
@@ -207,6 +272,52 @@ const AdminPanel = () => {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Admin Chat Viewer Modal */}
+        {showChat && selectedChat && selectedChatData && (
+          <div className="chat-modal-overlay" onClick={() => setShowChat(false)}>
+            <div className="admin-chat-modal card" onClick={e => e.stopPropagation()}>
+              <div className="admin-chat-modal-header">
+                <div>
+                  <h3>Chat: {selectedItemName}</h3>
+                  <p className="admin-chat-subtitle">
+                    👤 Donor: <strong>{selectedChatData.donor.name}</strong> &nbsp;|&nbsp;
+                    👤 Receiver: <strong>{selectedChatData.receiver.name}</strong>
+                  </p>
+                </div>
+                <button className="btn btn-outline btn-sm" onClick={() => setShowChat(false)}>
+                  Close
+                </button>
+              </div>
+
+              <div className="admin-chat-messages">
+                {selectedChatData.messages?.length === 0 ? (
+                  <p className="no-data">No messages yet.</p>
+                ) : (
+                  selectedChatData.messages?.map((msg, idx) => (
+                    <div
+                      key={idx}
+                      className={`admin-chat-message ${getSenderClass(msg, selectedChatData)}`}
+                    >
+                      <div className="admin-msg-header">
+                        <span className="admin-msg-sender">
+                          {getSenderLabel(msg, selectedChatData)}
+                        </span>
+                        <span className="admin-msg-time">
+                          {new Date(msg.timestamp || msg.createdAt).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </span>
+                      </div>
+                      <p className="admin-msg-content">{msg.content || msg.text}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
           </div>
         )}
       </div>
