@@ -7,11 +7,15 @@ const {
   getAllItems,
   approveItem,
   removeItem,
-  getDashboardStats
+  getDashboardStats,
+  getPublicStats
 } = require('../controllers/adminController');
 const { protect, admin } = require('../middleware/auth');
 
-// All routes require admin authentication
+// ✅ Public route — no auth required
+router.get('/public-stats', getPublicStats);
+
+// All routes below require admin authentication
 router.use(protect);
 router.use(admin);
 

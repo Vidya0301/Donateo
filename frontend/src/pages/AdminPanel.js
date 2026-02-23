@@ -180,6 +180,7 @@ const AdminPanel = () => {
                 <tr>
                   <th>Name</th>
                   <th>Email</th>
+                  <th>Phone</th>
                   <th>Role</th>
                   <th>Status</th>
                   <th>Actions</th>
@@ -190,6 +191,7 @@ const AdminPanel = () => {
                   <tr key={user._id}>
                     <td>{user.name}</td>
                     <td>{user.email}</td>
+                    <td>{user.phone || '—'}</td>
                     <td><span className="role-badge">{user.role}</span></td>
                     <td>
                       <span className={`badge ${user.isActive ? 'badge-success' : 'badge-secondary'}`}>

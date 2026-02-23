@@ -42,7 +42,9 @@ export const itemsAPI = {
   requestItem: (id, message) => api.post(`/items/${id}/request`, { message }),
   donateItem: (id, userId) => api.put(`/items/${id}/donate/${userId}`),
   getMyDonations: () => api.get('/items/my/donations'),
-  getMyReceivedItems: () => api.get('/items/my/received')
+  getMyReceivedItems: () => api.get('/items/my/received'),
+  markAsDonated: (id) => api.put(`/items/${id}/mark-donated`),
+  markAsReceived: (id) => api.put(`/items/${id}/mark-received`)
 };
 
 // Admin API
@@ -53,10 +55,9 @@ export const adminAPI = {
   getItems: (params) => api.get('/admin/items', { params }),
   approveItem: (id) => api.put(`/admin/items/${id}/approve`),
   removeItem: (id) => api.delete(`/admin/items/${id}`),
-  getStats: () => api.get('/admin/stats')
+  getStats: () => api.get('/admin/stats'),
+  getPublicStats: () => api.get('/admin/public-stats') // ✅ No auth required
 };
-
-
 
 // Chat API
 export const chatAPI = {
@@ -66,6 +67,14 @@ export const chatAPI = {
   sendMessage: (id, content) => api.post(`/chat/${id}/message`, { content }),
   updatePickupDetails: (id, details) => api.put(`/chat/${id}/pickup`, details),
   getAllChats: () => api.get('/chat/admin/all')
+};
+
+// Notifications API
+export const notificationsAPI = {
+  getAll: () => api.get('/notifications'),
+  markAllRead: () => api.put('/notifications/read-all'),
+  markRead: (id) => api.put(`/notifications/${id}/read`),
+  clear: () => api.delete('/notifications')
 };
 
 export default api;

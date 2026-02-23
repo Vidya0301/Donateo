@@ -1,0 +1,234 @@
+.profile-page {
+  padding: 4rem 0;
+  min-height: calc(100vh - 200px);
+}
+
+/* ── Header ── */
+.profile-header {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  margin-bottom: 3rem;
+  flex-wrap: wrap;
+}
+
+.profile-avatar {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--forest-green), var(--sage-green));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: white;
+  flex-shrink: 0;
+  box-shadow: 0 4px 20px rgba(46, 139, 87, 0.35);
+}
+
+.profile-header-info {
+  flex: 1;
+}
+
+.profile-header-info h1 {
+  font-size: clamp(1.8rem, 3vw, 2.5rem);
+  margin-bottom: 0.4rem;
+  color: var(--forest-green);
+}
+
+.role-pill {
+  display: inline-block;
+  padding: 0.3rem 1rem;
+  background: rgba(46, 139, 87, 0.12);
+  color: var(--forest-green);
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.profile-email {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--earth-brown);
+  font-size: 0.95rem;
+  margin-top: 0.3rem;
+}
+
+.edit-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+/* ── Info Cards ── */
+.profile-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.info-card {
+  padding: 1.75rem;
+}
+
+.info-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--forest-green);
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid rgba(46, 139, 87, 0.12);
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.65rem 0;
+  border-bottom: 1px solid var(--light-gray);
+  gap: 1rem;
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.info-label {
+  font-size: 0.875rem;
+  color: var(--earth-brown);
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.info-value {
+  font-size: 0.95rem;
+  color: var(--charcoal);
+  font-weight: 500;
+  text-align: right;
+}
+
+/* ── Edit Form ── */
+.profile-form {
+  padding: 2.5rem;
+  max-width: 800px;
+}
+
+.form-section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 1.2rem;
+  color: var(--forest-green);
+  margin-bottom: 1.5rem;
+}
+
+.optional-label {
+  font-size: 0.8rem;
+  color: var(--earth-brown);
+  font-weight: 400;
+}
+
+.form-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.form-label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--charcoal);
+}
+
+.form-control {
+  padding: 0.75rem 1rem;
+  border: 1.5px solid var(--light-gray);
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-family: var(--font-body);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  background: white;
+  color: var(--charcoal);
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: var(--forest-green);
+  box-shadow: 0 0 0 3px rgba(46, 139, 87, 0.12);
+}
+
+.form-control:disabled {
+  background: var(--light-gray);
+  color: #999;
+  cursor: not-allowed;
+}
+
+.form-hint {
+  font-size: 0.78rem;
+  color: #999;
+  margin-top: 0.2rem;
+}
+
+.form-divider {
+  border: none;
+  border-top: 2px solid rgba(46, 139, 87, 0.1);
+  margin: 2rem 0 1.75rem;
+}
+
+.form-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--light-gray);
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .profile-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .edit-btn {
+    margin-left: 0;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .form-row-2 {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-form {
+    padding: 1.5rem;
+  }
+
+  .form-actions {
+    flex-direction: column-reverse;
+  }
+
+  .form-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}

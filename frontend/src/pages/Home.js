@@ -1,9 +1,33 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FiHeart, FiPackage, FiUsers, FiTrendingUp, FiArrowRight } from 'react-icons/fi';
+import { adminAPI } from '../services/api';
 import './Home.css';
 
 const Home = () => {
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    donatedItems: 0,
+    totalItems: 0,
+  });
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await adminAPI.getPublicStats();
+        const data = response.data;
+        setStats({
+          totalUsers: data.totalUsers || 0,
+          donatedItems: data.donatedItems || 0,
+          totalItems: data.totalItems || 0,
+        });
+      } catch (error) {
+        // silently fail — page still works with default zeros
+      }
+    };
+    fetchStats();
+  }, []);
+
   return (
     <div className="home">
       {/* Hero Section */}
@@ -31,11 +55,11 @@ const Home = () => {
             <div className="hero-image">
               <div className="floating-card card-1">
                 <FiHeart />
-                <span>1000+ Items Donated</span>
+                <span>{stats.donatedItems}+ Items Donated</span>
               </div>
               <div className="floating-card card-2">
                 <FiUsers />
-                <span>500+ Active Members</span>
+                <span>{stats.totalUsers}+ Active Members</span>
               </div>
               <div className="floating-card card-3">
                 <FiTrendingUp />
@@ -51,31 +75,22 @@ const Home = () => {
         <div className="container">
           <h2 className="section-title">How It Works</h2>
           <p className="section-subtitle">Simple steps to make a difference</p>
-          
           <div className="steps">
             <div className="step">
               <div className="step-number">1</div>
-              <div className="step-icon">
-                <FiUsers />
-              </div>
+              <div className="step-icon"><FiUsers /></div>
               <h3>Sign Up</h3>
               <p>Create your account as a donor or receiver in just a few clicks</p>
             </div>
-
             <div className="step">
               <div className="step-number">2</div>
-              <div className="step-icon">
-                <FiPackage />
-              </div>
+              <div className="step-icon"><FiPackage /></div>
               <h3>Post or Browse</h3>
               <p>Donors post items with photos. Receivers browse and request what they need</p>
             </div>
-
             <div className="step">
               <div className="step-number">3</div>
-              <div className="step-icon">
-                <FiHeart />
-              </div>
+              <div className="step-icon"><FiHeart /></div>
               <h3>Connect & Share</h3>
               <p>Admin approves posts. Donors and receivers connect to arrange pickup</p>
             </div>
@@ -129,41 +144,29 @@ const Home = () => {
             <div className="impact-text">
               <h2>Making a Real Impact</h2>
               <p>
-                Every item donated through Wall of Kindness directly helps students, 
+                Every item donated through Donateo directly helps students, 
                 families in need, and contributes to a more sustainable planet. We believe 
                 in the power of community and the ripple effect of small acts of kindness.
               </p>
               <ul className="impact-list">
-                <li>
-                  <FiHeart />
-                  <span>Supporting students and families in need</span>
-                </li>
-                <li>
-                  <FiPackage />
-                  <span>Reducing waste and promoting reuse</span>
-                </li>
-                <li>
-                  <FiUsers />
-                  <span>Building stronger communities</span>
-                </li>
-                <li>
-                  <FiTrendingUp />
-                  <span>Creating a culture of giving</span>
-                </li>
+                <li><FiHeart /><span>Supporting students and families in need</span></li>
+                <li><FiPackage /><span>Reducing waste and promoting reuse</span></li>
+                <li><FiUsers /><span>Building stronger communities</span></li>
+                <li><FiTrendingUp /><span>Creating a culture of giving</span></li>
               </ul>
             </div>
             <div className="impact-stats">
               <div className="stat-card">
-                <h3>1,234</h3>
+                <h3>{stats.donatedItems}</h3>
                 <p>Items Donated</p>
               </div>
               <div className="stat-card">
-                <h3>567</h3>
-                <p>Lives Touched</p>
+                <h3>{stats.totalUsers}</h3>
+                <p>Active Members</p>
               </div>
               <div className="stat-card">
-                <h3>2.5 Tons</h3>
-                <p>Waste Reduced</p>
+                <h3>{stats.totalItems}</h3>
+                <p>Total Items Posted</p>
               </div>
             </div>
           </div>

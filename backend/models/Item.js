@@ -76,6 +76,26 @@ const itemSchema = new mongoose.Schema({
     type: Number,
     default: 1,
     min: 1
+  },
+
+  // ── Handover confirmation ──
+  donorConfirmed: {
+    type: Boolean,
+    default: false
+  },
+  donorConfirmedAt: {
+    type: Date,
+    default: null
+  },
+
+  // ── Receipt confirmation ──
+  receiverConfirmed: {
+    type: Boolean,
+    default: false
+  },
+  receiverConfirmedAt: {
+    type: Date,
+    default: null
   }
 }, {
   timestamps: true

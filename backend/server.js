@@ -8,13 +8,14 @@ const authRoutes = require('./routes/authRoutes');
 const itemRoutes = require('./routes/itemRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const chatRoutes = require('./routes/chatRoutes');
+const notificationRoutes = require('./routes/notificationRoutes.js'); // ✅ Added
 const { errorHandler, notFound } = require('./middleware/errorHandler');
 
 const app = express();
 
 // Middleware
 app.use(cors());
-app.use(express.json({ limit: '50mb' })); // Increase limit for base64 images
+app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Serve uploaded files
@@ -27,14 +28,15 @@ mongoose.connect(process.env.MONGODB_URI)
 
 // Routes
 app.get('/', (req, res) => {
-  res.json({ 
+  res.json({
     message: 'Donateo API',
     version: '1.0.0',
     endpoints: {
       auth: '/api/auth',
       items: '/api/items',
       admin: '/api/admin',
-      chat: '/api/chat'
+      chat: '/api/chat',
+      notifications: '/api/notifications'
     }
   });
 });
@@ -43,6 +45,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/items', itemRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/notifications', notificationRoutes); // ✅ Added
 
 // Error handling
 app.use(notFound);

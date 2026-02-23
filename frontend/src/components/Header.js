@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { FiHeart, FiUser, FiLogOut, FiMenu, FiX, FiShoppingBag, FiSettings } from 'react-icons/fi';
+import NotificationBell from './Notificationbell';
 import './Header.css';
 
 const Header = () => {
@@ -24,7 +25,7 @@ const Header = () => {
             <span className="logo-text">Donateo</span>
           </Link>
 
-          <button 
+          <button
             className="menu-toggle"
             onClick={() => setMenuOpen(!menuOpen)}
             aria-label="Toggle menu"
@@ -35,7 +36,7 @@ const Header = () => {
           <nav className={`nav ${menuOpen ? 'nav-open' : ''}`}>
             <Link to="/" onClick={() => setMenuOpen(false)}>Home</Link>
             <Link to="/browse" onClick={() => setMenuOpen(false)}>Browse Items</Link>
-            
+
             {isAuthenticated ? (
               <>
                 <Link to="/dashboard" onClick={() => setMenuOpen(false)}>
@@ -47,9 +48,15 @@ const Header = () => {
                   </Link>
                 )}
                 <div className="user-menu">
-                  <span className="user-name">
+                  <Link
+                    to="/profile"
+                    className="user-name"
+                    onClick={() => setMenuOpen(false)}
+                    title="Edit Profile"
+                  >
                     <FiUser /> {user?.name}
-                  </span>
+                  </Link>
+                  <NotificationBell />
                   <button onClick={handleLogout} className="btn-logout">
                     <FiLogOut /> Logout
                   </button>

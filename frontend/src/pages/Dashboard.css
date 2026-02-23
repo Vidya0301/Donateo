@@ -331,3 +331,77 @@
     font-size: 0.82rem;
   }
 }
+
+/* ── Extra status badges ── */
+.badge-scheduled {
+  background: #fff3cd;
+  color: #856404;
+  padding: 0.3rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.badge-confirmed {
+  background: #d4edda;
+  color: #155724;
+  padding: 0.3rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.badge-handover {
+  background: #cce5ff;
+  color: #004085;
+  padding: 0.3rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.badge-completed {
+  background: #d4edda;
+  color: #155724;
+  padding: 0.3rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.btn-success {
+  background: linear-gradient(135deg, #2e8b57, #3a9d6e);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: opacity 0.2s;
+}
+
+.btn-success:hover {
+  opacity: 0.9;
+}
+
+.confirmed-note {
+  font-size: 0.8rem;
+  color: #2e8b57;
+  font-weight: 600;
+  margin-top: 0.4rem !important;
+}
+
+/* ── Donated action buttons row ── */
+.donated-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  width: 100%;
+}
+
+.donated-actions .btn {
+  width: 100%;
+  justify-content: center;
+}

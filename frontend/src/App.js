@@ -11,6 +11,8 @@ import Browse from './pages/Browse';
 import Dashboard from './pages/Dashboard';
 import DonateItem from './pages/DonateItem';
 import AdminPanel from './pages/AdminPanel';
+import Profile from './pages/Profile';
+
 
 const PrivateRoute = ({ children, adminOnly = false }) => {
   const { isAuthenticated, isAdmin, loading } = useAuth();
@@ -36,6 +38,7 @@ function App() {
               <Route path="/login" element={<Auth />} />
               <Route path="/register" element={<Auth />} />
               <Route path="/browse" element={<Browse />} />
+              <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
               <Route 
                 path="/dashboard" 
                 element={

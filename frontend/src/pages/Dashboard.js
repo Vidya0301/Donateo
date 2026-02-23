@@ -111,7 +111,42 @@ const Dashboard = () => {
     }
   };
 
-  const getStatusBadge = (status) => {
+
+  const handleMarkAsDonated = async (itemId) => {
+    if (!window.confirm('Confirm that you have physically handed over this item?')) return;
+    try {
+      await itemsAPI.markAsDonated(itemId);
+      toast.success('Marked as handed over!');
+      fetchUserItems();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to update status');
+    }
+  };
+
+  const handleMarkAsReceived = async (itemId) => {
+    if (!window.confirm('Confirm that you have received this item?')) return;
+    try {
+      await itemsAPI.markAsReceived(itemId);
+      toast.success('Item marked as received!');
+      fetchUserItems();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to update status');
+    }
+  };
+
+  const getStatusBadge = (status, chat, item) => {
+    if (status === 'donated' && item?.receiverConfirmed) {
+      return <span className="badge badge-completed">✅ Completed</span>;
+    }
+    if (status === 'donated' && item?.donorConfirmed && !item?.receiverConfirmed) {
+      return <span className="badge badge-handover">📦 Awaiting Receipt</span>;
+    }
+    if (status === 'donated' && chat?.pickupDetails?.location && !chat?.pickupDetails?.confirmedByReceiver) {
+      return <span className="badge badge-scheduled">📅 Pickup Scheduled</span>;
+    }
+    if (status === 'donated' && chat?.pickupDetails?.confirmedByReceiver) {
+      return <span className="badge badge-confirmed">✅ Pickup Confirmed</span>;
+    }
     const badges = {
       pending: <span className="badge badge-warning">Pending Approval</span>,
       available: <span className="badge badge-success">Available</span>,
@@ -221,7 +256,7 @@ const Dashboard = () => {
                     </div>
 
                     <div className="item-status">
-                      {getStatusBadge(item.status)}
+                      {getStatusBadge(item.status, chat, item)}
 
                       {/* Show requests if item is available or requested */}
                       {item.requests && item.requests.length > 0 && item.status !== 'donated' && (
@@ -248,20 +283,32 @@ const Dashboard = () => {
                         </div>
                       )}
 
-                      {/* Show receiver info + Chat with Receiver button if donated */}
+                      {/* Show receiver info + action buttons if donated */}
                       {item.status === 'donated' && item.receiver && (
                         <div className="donated-to">
-                          <p>Donated to:</p>
+                          {/* Show "Scheduled to" until donor confirms, then "Donated to" */}
+                          <p>{item.donorConfirmed ? 'Donated to:' : 'Scheduled to:'}</p>
                           <p><strong>{item.receiver.name}</strong></p>
-                          {/* ✅ Donor can reopen chat */}
-                          {chat && (
-                            <button
-                              onClick={() => handleOpenDonorChat(item._id, item.itemName)}
-                              className="btn btn-sm btn-primary"
-                              style={{ marginTop: '0.5rem' }}
-                            >
-                              💬 Chat with Receiver
-                            </button>
+                          <div className="donated-actions">
+                            {chat && (
+                              <button
+                                onClick={() => handleOpenDonorChat(item._id, item.itemName)}
+                                className="btn btn-sm btn-primary"
+                              >
+                                💬 Chat with Receiver
+                              </button>
+                            )}
+                            {!item.donorConfirmed && (
+                              <button
+                                onClick={() => handleMarkAsDonated(item._id)}
+                                className="btn btn-sm btn-success"
+                              >
+                                ✅ Mark as Handed Over
+                              </button>
+                            )}
+                          </div>
+                          {item.donorConfirmed && (
+                            <p className="confirmed-note">✔ You marked this as handed over</p>
                           )}
                         </div>
                       )}
@@ -311,16 +358,34 @@ const Dashboard = () => {
                     </p>
                   </div>
                   <div className="item-status">
-                    {getStatusBadge(item.status)}
+                    {getStatusBadge(item.status, null, item)}
 
-                    {item.status === 'donated' && (
-                      <button
-                        onClick={() => handleOpenReceiverChat(item._id, item.itemName)}
-                        className="btn btn-sm btn-primary"
-                        style={{ marginTop: '1rem' }}
-                      >
-                        💬 Chat with Donor
-                      </button>
+                    {item.status === 'donated' && !item.receiverConfirmed && (
+                      <div className="donated-actions">
+                        <button
+                          onClick={() => handleOpenReceiverChat(item._id, item.itemName)}
+                          className="btn btn-sm btn-primary"
+                        >
+                          💬 Chat with Donor
+                        </button>
+                        <button
+                          onClick={() => handleMarkAsReceived(item._id)}
+                          className="btn btn-sm btn-success"
+                        >
+                          📦 Mark as Received
+                        </button>
+                      </div>
+                    )}
+                    {item.receiverConfirmed && (
+                      <>
+                        <button
+                          onClick={() => handleOpenReceiverChat(item._id, item.itemName)}
+                          className="btn btn-sm btn-primary"
+                        >
+                          💬 Chat with Donor
+                        </button>
+                        <p className="confirmed-note">✔ You marked this as received</p>
+                      </>
                     )}
                   </div>
                 </div>
