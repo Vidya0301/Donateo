@@ -65,7 +65,11 @@ export const chatAPI = {
   getMyChats: () => api.get('/chat/my'),
   getChatById: (id) => api.get(`/chat/${id}`),
   sendMessage: (id, content) => api.post(`/chat/${id}/message`, { content }),
+  sendQuickReply: (id, quickReply) => api.post(`/chat/${id}/message`, { quickReply }),
   updatePickupDetails: (id, details) => api.put(`/chat/${id}/pickup`, details),
+  markAsRead: (id) => api.put(`/chat/${id}/read`),
+  endChat: (id) => api.put(`/chat/${id}/end`),
+  reportChat: (id, reason) => api.put(`/chat/${id}/report`, { reason }),
   getAllChats: () => api.get('/chat/admin/all')
 };
 
@@ -76,5 +80,7 @@ export const notificationsAPI = {
   markRead: (id) => api.put(`/notifications/${id}/read`),
   clear: () => api.delete('/notifications')
 };
+
+
 
 export default api;

@@ -15,7 +15,6 @@ const Dashboard = () => {
   const [showChat, setShowChat] = useState(false);
   const [selectedChat, setSelectedChat] = useState(null);
   const [selectedItemName, setSelectedItemName] = useState('');
-  // Store chatId per donated item so donor can reopen chat
   const [donationChats, setDonationChats] = useState({});
 
   useEffect(() => {
@@ -33,14 +32,13 @@ const Dashboard = () => {
       setMyDonations(donationsRes.data);
       setMyReceivedItems(receivedRes.data);
 
-      // Build a map of itemId -> chat for donated items
       const chatMap = {};
       myChatsRes.data.forEach(chat => {
         if (chat.item?._id) {
           chatMap[chat.item._id] = chat;
         }
       });
-      setDonationChats(chatMap);
+      setDonationChats(chatMap);  // used by both donor and receiver
     } catch (error) {
       toast.error('Failed to load your items');
     } finally {
@@ -55,15 +53,11 @@ const Dashboard = () => {
         return;
       }
       await itemsAPI.donateItem(itemId, userId);
-
-      // Create chat
       const chatResponse = await chatAPI.createChat({ itemId, receiverId: userId });
-
       toast.success('Request approved! Opening chat...');
       setSelectedChat(chatResponse.data._id);
       setSelectedItemName(itemName);
       setShowChat(true);
-
       fetchUserItems();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to approve request');
@@ -98,7 +92,6 @@ const Dashboard = () => {
       const response = await chatAPI.getMyChats();
       const chats = response.data;
       const chat = chats.find(c => c.item._id === itemId);
-
       if (chat) {
         setSelectedChat(chat._id);
         setSelectedItemName(itemName);
@@ -110,7 +103,6 @@ const Dashboard = () => {
       toast.error('Failed to open chat');
     }
   };
-
 
   const handleMarkAsDonated = async (itemId) => {
     if (!window.confirm('Confirm that you have physically handed over this item?')) return;
@@ -156,7 +148,6 @@ const Dashboard = () => {
     return badges[status];
   };
 
-  // Format pickup date nicely
   const formatDate = (dateStr) => {
     if (!dateStr) return '';
     const d = new Date(dateStr);
@@ -169,9 +160,7 @@ const Dashboard = () => {
         <div className="dashboard-header">
           <div>
             <h1>Welcome back, {user?.name}!</h1>
-            <p className="dashboard-subtitle">
-              Manage your donations and items you've received
-            </p>
+            <p className="dashboard-subtitle">Manage your donations and items you've received</p>
           </div>
           <Link to="/donate" className="btn btn-primary">
             <FiPlus /> Donate New Item
@@ -206,7 +195,6 @@ const Dashboard = () => {
         {/* My Donations Section */}
         <div className="items-section">
           <h2>My Donations</h2>
-
           {loading ? (
             <div className="spinner"></div>
           ) : myDonations.length === 0 ? (
@@ -214,16 +202,13 @@ const Dashboard = () => {
               <FiPackage />
               <h3>No donations yet</h3>
               <p>Start sharing items with your community</p>
-              <Link to="/donate" className="btn btn-primary">
-                Donate Your First Item
-              </Link>
+              <Link to="/donate" className="btn btn-primary">Donate Your First Item</Link>
             </div>
           ) : (
             <div className="items-list">
               {myDonations.map(item => {
                 const chat = donationChats[item._id];
                 const pickup = chat?.pickupDetails;
-
                 return (
                   <div key={item._id} className="item-row card">
                     <img src={item.image || '/placeholder.jpg'} alt={item.itemName} />
@@ -232,33 +217,22 @@ const Dashboard = () => {
                       <p className="item-desc">{item.description}</p>
                       <div className="item-details">
                         <span className="category-tag">{item.category}</span>
-                        <span className="location-tag">
-                          <FiMapPin /> {item.location.city}
-                        </span>
+                        <span className="location-tag"><FiMapPin /> {item.location.city}</span>
                       </div>
-
-                      {/* ✅ Show pickup details if they exist */}
-                      {pickup && pickup.location && (
+                      {pickup && pickup.location && !item.donorConfirmed && (
                         <div className="pickup-details-card">
                           <p className="pickup-title">📦 Pickup Details</p>
                           <p><FiMapPin /> <strong>Location:</strong> {pickup.location}</p>
-                          {pickup.date && (
-                            <p><FiCalendar /> <strong>Date:</strong> {formatDate(pickup.date)}</p>
-                          )}
-                          {pickup.time && (
-                            <p><FiClock /> <strong>Time:</strong> {pickup.time}</p>
-                          )}
+                          {pickup.date && <p><FiCalendar /> <strong>Date:</strong> {formatDate(pickup.date)}</p>}
+                          {pickup.time && <p><FiClock /> <strong>Time:</strong> {pickup.time}</p>}
                           <span className={`pickup-status-badge ${pickup.confirmedByReceiver ? 'confirmed' : 'pending'}`}>
                             {pickup.confirmedByReceiver ? '✅ Receiver Confirmed' : '⏳ Awaiting Confirmation'}
                           </span>
                         </div>
                       )}
                     </div>
-
                     <div className="item-status">
                       {getStatusBadge(item.status, chat, item)}
-
-                      {/* Show requests if item is available or requested */}
                       {item.requests && item.requests.length > 0 && item.status !== 'donated' && (
                         <div className="requests-info">
                           <p><strong>{item.requests.length} Request(s)</strong></p>
@@ -282,11 +256,8 @@ const Dashboard = () => {
                           ))}
                         </div>
                       )}
-
-                      {/* Show receiver info + action buttons if donated */}
                       {item.status === 'donated' && item.receiver && (
                         <div className="donated-to">
-                          {/* Show "Scheduled to" until donor confirms, then "Donated to" */}
                           <p>{item.donorConfirmed ? 'Donated to:' : 'Scheduled to:'}</p>
                           <p><strong>{item.receiver.name}</strong></p>
                           <div className="donated-actions">
@@ -312,13 +283,8 @@ const Dashboard = () => {
                           )}
                         </div>
                       )}
-
-                      {/* Delete button for pending items */}
                       {item.status === 'pending' && (
-                        <button
-                          onClick={() => handleDeleteItem(item._id)}
-                          className="btn btn-sm btn-outline"
-                        >
+                        <button onClick={() => handleDeleteItem(item._id)} className="btn btn-sm btn-outline">
                           Delete
                         </button>
                       )}
@@ -330,83 +296,125 @@ const Dashboard = () => {
           )}
         </div>
 
-        {/* Items I've Received Section */}
+        {/* Pending Pickups Section — items assigned but not yet received */}
+        {myReceivedItems.filter(i => !i.receiverConfirmed).length > 0 && (
+          <div className="items-section" style={{ marginTop: '3rem' }}>
+            <h2>Pending Pickups</h2>
+            <div className="items-list">
+              {myReceivedItems.filter(i => !i.receiverConfirmed).map(item => {
+                const rchat = donationChats[item._id];
+                const rpickup = rchat?.pickupDetails;
+                return (
+                  <div key={item._id} className="item-row card">
+                    <img src={item.image || '/placeholder.jpg'} alt={item.itemName} />
+                    <div className="item-info">
+                      <h3>{item.itemName}</h3>
+                      <p className="item-desc">{item.description}</p>
+                      <div className="item-details">
+                        <span className="category-tag">{item.category}</span>
+                        <span className="location-tag"><FiMapPin /> {item.location?.city}</span>
+                      </div>
+                      <p className="donor-info"><FiUser /> Donated by: <strong>{item.donor?.name}</strong></p>
+                      {/* Use chat pickup details OR backend-provided pickupScheduled fields */}
+                    {(rpickup?.location || item.pickupScheduled) && (
+                        <div className="pickup-details-card">
+                          <p className="pickup-title">📦 Pickup Details</p>
+                          <p><FiMapPin /> <strong>Location:</strong> {rpickup?.location || item.pickupLocation}</p>
+                          {(rpickup?.date || item.pickupDate) && <p><FiCalendar /> <strong>Date:</strong> {formatDate(rpickup?.date || item.pickupDate)}</p>}
+                          {(rpickup?.time || item.pickupTime) && <p><FiClock /> <strong>Time:</strong> {rpickup?.time || item.pickupTime}</p>}
+                          <span className={`pickup-status-badge ${(rpickup?.confirmedByReceiver || item.pickupConfirmed) ? 'confirmed' : 'pending'}`}>
+                            {(rpickup?.confirmedByReceiver || item.pickupConfirmed) ? '✅ You Confirmed Pickup' : '⏳ Awaiting Your Confirmation'}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="item-status">
+                      {getStatusBadge(item.status, rchat, item)}
+                      <div className="donated-to">
+                        <p>Scheduled from:</p>
+                        <p><strong>{item.donor?.name}</strong></p>
+                        <div className="donated-actions">
+                          {rchat && (
+                            <button
+                              onClick={() => handleOpenReceiverChat(item._id, item.itemName)}
+                              className="btn btn-sm btn-primary"
+                            >
+                              💬 Chat with Donor
+                            </button>
+                          )}
+                          {!item.receiverConfirmed && (
+                            <button
+                              onClick={() => handleMarkAsReceived(item._id)}
+                              className="btn btn-sm btn-success"
+                            >
+                              ✅ Mark as Received
+                            </button>
+                          )}
+                        </div>
+                        {!item.donorConfirmed && !rpickup?.location && (
+                          <p className="confirmed-note" style={{color:'#856404'}}>⏳ Waiting for pickup details</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Items I've Received Section — only truly received items */}
         <div className="items-section" style={{ marginTop: '3rem' }}>
           <h2>Items I've Received</h2>
-
           {loading ? (
             <div className="spinner"></div>
-          ) : myReceivedItems.length === 0 ? (
+          ) : myReceivedItems.filter(i => i.receiverConfirmed).length === 0 ? (
             <div className="empty-state card">
               <FiGift />
               <h3>No items received yet</h3>
               <p>Browse available items to get started</p>
-              <Link to="/browse" className="btn btn-primary">
-                Browse Items
-              </Link>
+              <Link to="/browse" className="btn btn-primary">Browse Items</Link>
             </div>
           ) : (
             <div className="items-list">
-              {myReceivedItems.map(item => (
+              {myReceivedItems.filter(i => i.receiverConfirmed).map(item => (
                 <div key={item._id} className="item-row card">
                   <img src={item.image || '/placeholder.jpg'} alt={item.itemName} />
                   <div className="item-info">
                     <h3>{item.itemName}</h3>
                     <p className="item-desc">{item.description}</p>
-                    <p className="donor-info">
-                      <FiUser /> Donated by: <strong>{item.donor?.name}</strong>
-                    </p>
+                    <p className="donor-info"><FiUser /> Donated by: <strong>{item.donor?.name}</strong></p>
                   </div>
                   <div className="item-status">
                     {getStatusBadge(item.status, null, item)}
-
-                    {item.status === 'donated' && !item.receiverConfirmed && (
-                      <div className="donated-actions">
-                        <button
-                          onClick={() => handleOpenReceiverChat(item._id, item.itemName)}
-                          className="btn btn-sm btn-primary"
-                        >
-                          💬 Chat with Donor
-                        </button>
-                        <button
-                          onClick={() => handleMarkAsReceived(item._id)}
-                          className="btn btn-sm btn-success"
-                        >
-                          📦 Mark as Received
-                        </button>
-                      </div>
-                    )}
-                    {item.receiverConfirmed && (
-                      <>
-                        <button
-                          onClick={() => handleOpenReceiverChat(item._id, item.itemName)}
-                          className="btn btn-sm btn-primary"
-                        >
-                          💬 Chat with Donor
-                        </button>
-                        <p className="confirmed-note">✔ You marked this as received</p>
-                      </>
-                    )}
+                    <button
+                      onClick={() => handleOpenReceiverChat(item._id, item.itemName)}
+                      className="btn btn-sm btn-primary"
+                      style={{ marginTop: '0.5rem' }}
+                    >
+                      💬 Chat with Donor
+                    </button>
+                    <p className="confirmed-note">✔ You marked this as received</p>
                   </div>
                 </div>
               ))}
             </div>
           )}
         </div>
-      </div>
 
-      {/* Chat Modal */}
-      {showChat && selectedChat && (
-        <ChatModal
-          chatId={selectedChat}
-          itemName={selectedItemName}
-          onClose={() => {
-            setShowChat(false);
-            setSelectedChat(null);
-            fetchUserItems(); // Refresh to show updated pickup details
-          }}
-        />
-      )}
+        {/* Chat Modal */}
+        {showChat && selectedChat && (
+          <ChatModal
+            chatId={selectedChat}
+            itemName={selectedItemName}
+            onClose={() => {
+              setShowChat(false);
+              setSelectedChat(null);
+              fetchUserItems();
+            }}
+          />
+        )}
+      </div>
     </div>
   );
 };

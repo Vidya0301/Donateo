@@ -6,7 +6,10 @@ const {
   sendMessage,
   getMyChats,
   getAllChats,
-  updatePickupDetails
+  updatePickupDetails,
+  markAsRead,
+  endChat,
+  reportChat
 } = require('../controllers/chatController');
 const { protect, admin } = require('../middleware/auth');
 
@@ -16,5 +19,8 @@ router.get('/admin/all', protect, admin, getAllChats);
 router.get('/:id', protect, getChatById);
 router.post('/:id/message', protect, sendMessage);
 router.put('/:id/pickup', protect, updatePickupDetails);
+router.put('/:id/read', protect, markAsRead);
+router.put('/:id/end', protect, endChat);
+router.put('/:id/report', protect, reportChat);
 
 module.exports = router;

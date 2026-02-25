@@ -1,6 +1,6 @@
 const Item = require('../models/Item');
 const User = require('../models/User');
-const { notify, notifyAdmins } = require('../utils/Notificationhelper');
+const { notify, notifyAdmins } = require('../utils/notificationHelper');
 
 const createItem = async (req, res) => {
   try {
@@ -203,12 +203,34 @@ const getMyDonations = async (req, res) => {
   }
 };
 
+// @desc    Get items received by user
+// @route   GET /api/items/my/received
+// @access  Private
 const getMyReceivedItems = async (req, res) => {
   try {
     const items = await Item.find({ receiver: req.user._id })
-      .populate('donor', 'name email phone address')
-      .sort({ createdAt: -1 });
-    res.json(items);
+      .populate('donor', 'name email')
+      .sort({ updatedAt: -1 });
+
+    const Chat = require('../models/Chat');
+    const itemsWithPickup = await Promise.all(
+      items.map(async (item) => {
+        const chat = await Chat.findOne({ item: item._id, receiver: req.user._id });
+        const itemObj = item.toObject();
+        if (chat && chat.pickupDetails && chat.pickupDetails.location) {
+          itemObj.pickupScheduled = true;
+          itemObj.pickupLocation = chat.pickupDetails.location;
+          itemObj.pickupDate = chat.pickupDetails.date;
+          itemObj.pickupTime = chat.pickupDetails.time;
+          itemObj.pickupConfirmed = chat.pickupDetails.confirmed;
+        } else {
+          itemObj.pickupScheduled = false;
+        }
+        return itemObj;
+      })
+    );
+
+    res.json(itemsWithPickup);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

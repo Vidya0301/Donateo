@@ -205,8 +205,9 @@ const sendEmail = async (to, templateName, templateData) => {
       subject: template.subject,
       html: template.html
     });
+    console.log(`✅ Email sent [${templateName}] → ${to}`);
   } catch (error) {
-    console.error('Email send error:', error.message);
+    console.error(`❌ Email send error [${templateName}] → ${to}:`, error.message);
     // Don't throw — email failure shouldn't break the main action
   }
 };

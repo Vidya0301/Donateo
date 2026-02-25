@@ -405,3 +405,44 @@
   width: 100%;
   justify-content: center;
 }
+
+.pickup-info-card {
+  background: linear-gradient(135deg, rgba(46, 139, 87, 0.08), rgba(90, 155, 189, 0.08));
+  border-left: 4px solid var(--forest-green);
+  padding: 1rem;
+  margin-top: 1rem;
+  border-radius: 8px;
+}
+
+.pickup-info-card h4 {
+  color: var(--forest-green);
+  margin-bottom: 0.75rem;
+  font-size: 1rem;
+}
+
+.pickup-info-card p {
+  margin: 0.5rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--charcoal);
+}
+
+.pickup-info-card p svg {
+  color: var(--ocean-blue);
+}
+
+.status-note {
+  margin-top: 0.75rem;
+  padding: 0.5rem;
+  background: rgba(255, 193, 7, 0.1);
+  border-radius: 6px;
+  font-weight: 500;
+  color: var(--earth-brown);
+}
+
+.status-note.confirmed {
+  background: rgba(46, 139, 87, 0.1);
+  color: var(--forest-green);
+}

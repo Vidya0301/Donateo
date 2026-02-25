@@ -9,12 +9,25 @@ const messageSchema = new mongoose.Schema({
   content: {
     type: String,
     required: true,
-    trim: true
+    trim: true,
+    maxlength: 500
   },
   isBot: {
     type: Boolean,
     default: false
   },
+  isSystem: {
+    type: Boolean,
+    default: false
+  },
+  isQuickReply: {
+    type: Boolean,
+    default: false
+  },
+  readBy: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
   timestamp: {
     type: Date,
     default: Date.now
@@ -51,7 +64,17 @@ const chatSchema = new mongoose.Schema({
     type: String,
     enum: ['active', 'completed', 'cancelled'],
     default: 'active'
-  }
+  },
+  reported: {
+    type: Boolean,
+    default: false
+  },
+  reportedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  reportReason: String,
+  reportedAt: Date
 }, {
   timestamps: true
 });

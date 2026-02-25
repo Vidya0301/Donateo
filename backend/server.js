@@ -8,7 +8,7 @@ const authRoutes = require('./routes/authRoutes');
 const itemRoutes = require('./routes/itemRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const chatRoutes = require('./routes/chatRoutes');
-const notificationRoutes = require('./routes/notificationRoutes.js'); // ✅ Added
+const notificationRoutes = require('./routes/notificationRoutes'); // ✅ Added
 const { errorHandler, notFound } = require('./middleware/errorHandler');
 
 const app = express();
