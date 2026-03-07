@@ -137,3 +137,94 @@
     font-size: 2rem;
   }
 }
+
+/* ── ADD THESE STYLES TO THE BOTTOM OF YOUR Auth.css ── */
+
+/* CAPTCHA Box */
+.captcha-box {
+  border: 1.5px solid #d4e8da;
+  border-radius: 12px;
+  padding: 14px 16px;
+  background: #f8fdf9;
+  margin-bottom: 0.5rem;
+  transition: border-color 0.2s;
+}
+.captcha-box.captcha-ok {
+  border-color: #2e8b57;
+  background: #edfaf3;
+}
+
+.captcha-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #6b9478;
+  margin: 0 0 10px 0;
+}
+
+.captcha-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.captcha-question {
+  font-size: 0.95rem;
+  color: #1a2e1e;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.captcha-input {
+  width: 65px;
+  padding: 6px 10px;
+  border: 1.5px solid #d4e8da;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 700;
+  text-align: center;
+  color: #1a2e1e;
+  outline: none;
+  background: white;
+  transition: border-color 0.2s;
+}
+.captcha-input:focus {
+  border-color: #2e8b57;
+  box-shadow: 0 0 0 3px rgba(46,139,87,0.1);
+}
+/* Hide number arrows */
+.captcha-input::-webkit-outer-spin-button,
+.captcha-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.captcha-input[type=number] { -moz-appearance: textfield; }
+
+.captcha-refresh {
+  background: none;
+  border: none;
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  transition: background 0.2s;
+  line-height: 1;
+}
+.captcha-refresh:hover { background: #e0f0e8; }
+
+.captcha-success {
+  font-size: 0.75rem;
+  color: #2e8b57;
+  font-weight: 700;
+  margin: 8px 0 0;
+}
+.captcha-wrong {
+  font-size: 0.75rem;
+  color: #e24b4b;
+  font-weight: 600;
+  margin: 8px 0 0;
+}
+
+/* Form hint */
+.form-hint {
+  font-size: 0.75rem;
+  color: #6b9478;
+  margin-top: 3px;
+  display: block;
+}

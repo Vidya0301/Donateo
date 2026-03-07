@@ -34,12 +34,21 @@ export const AuthProvider = ({ children }) => {
   };
 
   const login = async (email, password) => {
-    const response = await authAPI.login({ email, password });
-    const { token, ...userData } = response.data;
-    localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(userData));
-    setUser(userData);
-    return userData;
+    try {
+      const response = await authAPI.login({ email, password });
+      const { token, ...userData } = response.data;
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(userData));
+      setUser(userData);
+      return { success: true, userData };
+    } catch (error) {
+      // Return error info instead of throwing — let Auth.js handle it
+      return {
+        success: false,
+        requiresVerification: error.response?.data?.requiresVerification || false,
+        message: error.response?.data?.message || 'Invalid email or password'
+      };
+    }
   };
 
   const register = async (userData) => {
@@ -49,6 +58,13 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('user', JSON.stringify(newUser));
     setUser(newUser);
     return newUser;
+  };
+
+  // Called after OTP verification — token returned from verifyOTP endpoint
+  const loginWithToken = (userData, token) => {
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(userData));
+    setUser(userData);
   };
 
   const logout = () => {
@@ -67,6 +83,7 @@ export const AuthProvider = ({ children }) => {
     loading,
     login,
     register,
+    loginWithToken,
     logout,
     updateUser,
     isAuthenticated: !!user,

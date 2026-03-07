@@ -40,6 +40,18 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+
+  // ── EMAIL VERIFICATION ──────────────────────────────────────
+  // default: true  → all EXISTING users in DB are automatically
+  //                  treated as verified. No migration needed.
+  // New registrations explicitly set isVerified: false in
+  // authController.register() until OTP is confirmed.
+  // ────────────────────────────────────────────────────────────
+  isVerified: {
+    type: Boolean,
+    default: true
+  },
+
   itemsDonated: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Item'
@@ -55,7 +67,6 @@ const userSchema = new mongoose.Schema({
 // Hash password before saving
 userSchema.pre('save', async function(next) {
   if (!this.isModified('password')) return next();
-  
   try {
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);

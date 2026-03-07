@@ -1,59 +1,168 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const { notify, notifyAdmins } = require('../utils/Notificationhelper');
+const OTP = require('../models/OTP');
+const { sendEmail } = require('../utils/emailService');
 
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30d' });
 };
 
+const generateOTP = () => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+};
+
+// ─────────────────────────────────────────
+// STEP 1: Register → Create user (unverified) + Send OTP
+// ─────────────────────────────────────────
 const register = async (req, res) => {
   try {
     const { name, email, password, role, phone, address } = req.body;
 
-    const userExists = await User.findOne({ email });
-    if (userExists) {
-      return res.status(400).json({ message: 'User already exists' });
+    // Check if verified user already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser && existingUser.isVerified) {
+      return res.status(400).json({ message: 'An account with this email already exists.' });
     }
 
-    const user = await User.create({ name, email, password, role: role || 'donor', phone, address });
-
-    if (user) {
-      // Welcome email to new user
-      await notify({
-        recipientId: user._id,
-        type: 'welcome',
-        title: 'Welcome to Donateo! 🌱',
-        message: `Hi ${user.name}! Thank you for joining Donateo. Start donating or browsing items today.`,
-        link: '/browse',
-        emailTemplate: 'welcome',
-        emailData: [user.name]
-      });
-
-      // Notify all admins about new registration
-      await notifyAdmins({
-        type: 'new_user_registered',
-        title: `New user registered: ${user.name}`,
-        message: `${user.name} (${user.email}) joined as a ${user.role}.`,
-        link: '/admin',
-        emailTemplate: 'new_user_registered',
-        emailData: [user.name, user.email, user.role]
-      });
-
-      res.status(201).json({
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        phone: user.phone,
-        address: user.address,
-        token: generateToken(user._id)
-      });
+    // Delete old unverified user if re-registering
+    if (existingUser && !existingUser.isVerified) {
+      await User.deleteOne({ email });
     }
+
+    // Create new user — explicitly set isVerified: false for new registrations
+    const user = await User.create({
+      name, email, password,
+      role: role || 'donor',
+      phone, address,
+      isVerified: false   // ← new users must verify email
+    });
+
+    // Generate 6-digit OTP
+    const otp = generateOTP();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    // Remove any old OTPs for this email
+    await OTP.deleteMany({ email });
+    await OTP.create({ email, otp, expiresAt, attempts: 0 });
+
+    // Send OTP email using correct sendEmail(to, templateName, templateData) signature
+    await sendEmail(email, 'otp_verification', [name, otp]);
+
+    res.status(200).json({
+      message: 'OTP sent to your email. Please verify to complete registration.',
+      email,
+      requiresVerification: true
+    });
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
+// ─────────────────────────────────────────
+// STEP 2: Verify OTP → Activate account
+// ─────────────────────────────────────────
+const verifyOTP = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    const otpRecord = await OTP.findOne({ email });
+
+    if (!otpRecord) {
+      return res.status(400).json({ message: 'OTP not found. Please register again.' });
+    }
+
+    // Check expiry
+    if (otpRecord.expiresAt < new Date()) {
+      await OTP.deleteOne({ email });
+      await User.deleteOne({ email, isVerified: false });
+      return res.status(400).json({ message: 'OTP has expired. Please register again.' });
+    }
+
+    // Wrong OTP
+    if (otpRecord.otp !== otp) {
+      otpRecord.attempts = (otpRecord.attempts || 0) + 1;
+      await otpRecord.save();
+
+      if (otpRecord.attempts >= 3) {
+        await OTP.deleteOne({ email });
+        await User.deleteOne({ email, isVerified: false });
+        return res.status(400).json({ message: 'Too many wrong attempts. Please register again.' });
+      }
+
+      return res.status(400).json({
+        message: `Incorrect OTP. ${3 - otpRecord.attempts} attempt(s) remaining.`
+      });
+    }
+
+    // ✅ OTP correct — activate user
+    const user = await User.findOneAndUpdate(
+      { email },
+      { isVerified: true },
+      { new: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found. Please register again.' });
+    }
+
+    // Clean up OTP
+    await OTP.deleteOne({ email });
+
+    // Send welcome email using existing template
+    try {
+      await sendEmail(user.email, 'welcome', [user.name]);
+    } catch (emailErr) {
+      console.log('Welcome email failed (non-critical):', emailErr.message);
+    }
+
+    // Return token so user is auto-logged in
+    res.status(200).json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      phone: user.phone,
+      address: user.address,
+      isVerified: true,
+      token: generateToken(user._id)
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ─────────────────────────────────────────
+// Resend OTP
+// ─────────────────────────────────────────
+const resendOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    const user = await User.findOne({ email, isVerified: false });
+    if (!user) {
+      return res.status(400).json({ message: 'No pending verification for this email.' });
+    }
+
+    const otp = generateOTP();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+    await OTP.deleteMany({ email });
+    await OTP.create({ email, otp, expiresAt, attempts: 0 });
+
+    await sendEmail(email, 'otp_verification', [user.name, otp]);
+
+    res.status(200).json({ message: 'New OTP sent to your email.' });
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ─────────────────────────────────────────
+// Login — blocks unverified users
+// ─────────────────────────────────────────
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -61,6 +170,15 @@ const login = async (req, res) => {
 
     if (!user) return res.status(401).json({ message: 'Invalid email or password' });
     if (!user.isActive) return res.status(401).json({ message: 'Account has been deactivated' });
+
+    // Block unverified new users
+    if (!user.isVerified) {
+      return res.status(401).json({
+        message: 'Please verify your email before logging in.',
+        requiresVerification: true,
+        email
+      });
+    }
 
     const isMatch = await user.comparePassword(password);
     if (!isMatch) return res.status(401).json({ message: 'Invalid email or password' });
@@ -72,6 +190,7 @@ const login = async (req, res) => {
       role: user.role,
       phone: user.phone,
       address: user.address,
+      isVerified: user.isVerified,
       token: generateToken(user._id)
     });
   } catch (error) {
@@ -116,4 +235,4 @@ const updateProfile = async (req, res) => {
   }
 };
 
-module.exports = { register, login, getMe, updateProfile };
+module.exports = { register, verifyOTP, resendOTP, login, getMe, updateProfile };

@@ -1,15 +1,80 @@
 import React, { useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import axios from 'axios';
 import { toast } from 'react-toastify';
 import './Auth.css';
 
+
+// ─────────────────────────────────────────────────────
+// Simple Math CAPTCHA — no API key needed
+// ─────────────────────────────────────────────────────
+const MathCaptcha = ({ onVerify }) => {
+  const generate = () => {
+    const a = Math.floor(Math.random() * 9) + 1;
+    const b = Math.floor(Math.random() * 9) + 1;
+    return { a, b, answer: a + b };
+  };
+
+  const [q, setQ] = useState(generate());
+  const [input, setInput] = useState('');
+  const [verified, setVerified] = useState(false);
+
+  const handleInput = (val) => {
+    setInput(val);
+    if (val === String(q.answer)) {
+      setVerified(true);
+      onVerify(true);
+    } else {
+      setVerified(false);
+      onVerify(false);
+    }
+  };
+
+  const refresh = () => {
+    setQ(generate());
+    setInput('');
+    setVerified(false);
+    onVerify(false);
+  };
+
+  return (
+    <div className={`captcha-box ${verified ? 'captcha-ok' : ''}`}>
+      <p className="captcha-label">🤖 Prove you're human</p>
+      <div className="captcha-row">
+        <span className="captcha-question">
+          What is <strong>{q.a}</strong> + <strong>{q.b}</strong> ?
+        </span>
+        <input
+          type="number"
+          className="captcha-input"
+          value={input}
+          onChange={e => handleInput(e.target.value)}
+          placeholder="?"
+          min="1"
+          max="18"
+        />
+        <button type="button" className="captcha-refresh" onClick={refresh} title="New question">
+          🔄
+        </button>
+      </div>
+      {verified
+        ? <p className="captcha-success">✅ Verified</p>
+        : input && <p className="captcha-wrong">❌ Incorrect</p>
+      }
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────
+// Auth Page — Login + Register
+// ─────────────────────────────────────────────────────
 const Auth = () => {
   const location = useLocation();
   const isLogin = location.pathname === '/login';
   const navigate = useNavigate();
-  const { login, register } = useAuth();
-  
+  const { login } = useAuth();
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -17,15 +82,11 @@ const Auth = () => {
     confirmPassword: '',
     role: 'donor',
     phone: '',
-    address: {
-      street: '',
-      city: '',
-      state: '',
-      zipCode: ''
-    }
+    address: { street: '', city: '', state: '', zipCode: '' }
   });
 
   const [loading, setLoading] = useState(false);
+  const [captchaPassed, setCaptchaPassed] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -46,19 +107,53 @@ const Auth = () => {
 
     try {
       if (isLogin) {
-        await login(formData.email, formData.password);
-        toast.success('Welcome back!');
-        navigate('/dashboard');
+        // ── LOGIN — handles result instead of thrown error ──
+        const result = await login(formData.email, formData.password);
+        if (result.success) {
+          toast.success('Welcome back!');
+          navigate('/dashboard');
+        } else if (result.requiresVerification) {
+          toast.warn('Please verify your email first.');
+          navigate('/verify-otp', { state: { email: formData.email } });
+        } else {
+          toast.error(result.message);
+        }
+
       } else {
+        // ── REGISTER — with CAPTCHA + OTP ─────────────────
+
         if (formData.password !== formData.confirmPassword) {
           toast.error('Passwords do not match');
           setLoading(false);
           return;
         }
-        await register(formData);
-        toast.success('Account created successfully!');
-        navigate('/dashboard');
+        if (formData.password.length < 6) {
+          toast.error('Password must be at least 6 characters');
+          setLoading(false);
+          return;
+        }
+        if (!captchaPassed) {
+          toast.error('Please complete the CAPTCHA first');
+          setLoading(false);
+          return;
+        }
+
+        // Call register API directly → sends OTP to email
+        await axios.post('/api/auth/register', {
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+          role: formData.role,
+          phone: formData.phone,
+          address: formData.address
+        });
+
+        toast.success('OTP sent to your email! Please verify.');
+
+        // Redirect to OTP verification page
+        navigate('/verify-otp', { state: { email: formData.email } });
       }
+
     } catch (error) {
       toast.error(error.response?.data?.message || 'An error occurred');
     } finally {
@@ -70,6 +165,8 @@ const Auth = () => {
     <div className="auth-page">
       <div className="container">
         <div className="auth-container">
+
+          {/* Left image panel */}
           <div className="auth-image">
             <div className="auth-image-content">
               <h2>Join Our Community</h2>
@@ -83,15 +180,18 @@ const Auth = () => {
             </div>
           </div>
 
+          {/* Right form panel */}
           <div className="auth-form-container">
             <h1>{isLogin ? 'Welcome Back' : 'Create Account'}</h1>
             <p className="auth-subtitle">
-              {isLogin 
-                ? 'Log in to continue sharing kindness' 
+              {isLogin
+                ? 'Log in to continue sharing kindness'
                 : 'Join us in making a difference'}
             </p>
 
             <form onSubmit={handleSubmit} className="auth-form">
+
+              {/* ── REGISTER ONLY FIELDS ── */}
               {!isLogin && (
                 <>
                   <div className="form-group">
@@ -116,13 +216,14 @@ const Auth = () => {
                       className="form-select"
                       required
                     >
-                      <option value="donor">Donate Items</option>
-                      <option value="receiver">Receive Items</option>
+                      <option value="donor">🎁 Donate Items</option>
+                      <option value="receiver">🤲 Receive Items</option>
                     </select>
                   </div>
                 </>
               )}
 
+              {/* Email */}
               <div className="form-group">
                 <label className="form-label">Email Address</label>
                 <input
@@ -134,8 +235,14 @@ const Auth = () => {
                   required
                   placeholder="your.email@example.com"
                 />
+                {!isLogin && (
+                  <small className="form-hint">
+                    📧 A 6-digit OTP will be sent to verify this email
+                  </small>
+                )}
               </div>
 
+              {/* Password */}
               <div className="form-group">
                 <label className="form-label">Password</label>
                 <input
@@ -150,6 +257,7 @@ const Auth = () => {
                 />
               </div>
 
+              {/* ── REGISTER ONLY FIELDS (continued) ── */}
               {!isLogin && (
                 <>
                   <div className="form-group">
@@ -164,6 +272,12 @@ const Auth = () => {
                       placeholder="Confirm password"
                       minLength="6"
                     />
+                    {formData.confirmPassword && formData.password !== formData.confirmPassword && (
+                      <small style={{ color: '#e24b4b', fontWeight: 600 }}>❌ Passwords do not match</small>
+                    )}
+                    {formData.confirmPassword && formData.password === formData.confirmPassword && (
+                      <small style={{ color: '#2e8b57', fontWeight: 600 }}>✅ Passwords match</small>
+                    )}
                   </div>
 
                   <div className="form-group">
@@ -189,30 +303,33 @@ const Auth = () => {
                       placeholder="Your city"
                     />
                   </div>
+
+                  {/* ── CAPTCHA — only shown on register ── */}
+                  <MathCaptcha onVerify={setCaptchaPassed} />
                 </>
               )}
 
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 className="btn btn-primary btn-block"
-                disabled={loading}
+                disabled={loading || (!isLogin && !captchaPassed)}
               >
-                {loading ? 'Processing...' : (isLogin ? 'Log In' : 'Create Account')}
+                {loading
+                  ? (isLogin ? 'Logging in...' : 'Sending OTP...')
+                  : (isLogin ? 'Log In' : '📧 Register & Verify Email')
+                }
               </button>
             </form>
 
             <div className="auth-footer">
               {isLogin ? (
-                <p>
-                  Don't have an account? <Link to="/register">Sign up here</Link>
-                </p>
+                <p>Don't have an account? <Link to="/register">Sign up here</Link></p>
               ) : (
-                <p>
-                  Already have an account? <Link to="/login">Log in here</Link>
-                </p>
+                <p>Already have an account? <Link to="/login">Log in here</Link></p>
               )}
             </div>
           </div>
+
         </div>
       </div>
     </div>

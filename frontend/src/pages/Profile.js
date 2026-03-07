@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { authAPI } from '../services/api';
 import { toast } from 'react-toastify';
-import { FiUser, FiMail, FiPhone, FiMapPin, FiLock, FiSave, FiEdit2 } from 'react-icons/fi';
+import { FiUser, FiMail, FiPhone, FiMapPin, FiLock, FiSave, FiEdit2, FiShield, FiCheckCircle } from 'react-icons/fi';
 import './Profile.css';
 
 const Profile = () => {
-  const { user, login } = useAuth();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [editMode, setEditMode] = useState(false);
 
@@ -75,7 +75,6 @@ const Profile = () => {
 
       const response = await authAPI.updateProfile(updateData);
 
-      // Update token in localStorage if returned
       if (response.data.token) {
         localStorage.setItem('token', response.data.token);
       }
@@ -84,7 +83,6 @@ const Profile = () => {
       setEditMode(false);
       setFormData(prev => ({ ...prev, password: '', confirmPassword: '' }));
 
-      // Refresh auth context
       window.location.reload();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to update profile');
@@ -99,15 +97,30 @@ const Profile = () => {
     return '🤲 Receiver';
   };
 
+  // isVerified is true for: existing users (default:true) + new users who verified OTP
+  const isVerified = user?.isVerified !== false;
+
   return (
     <div className="profile-page">
       <div className="container">
+
+        {/* ── Profile Header ── */}
         <div className="profile-header">
           <div className="profile-avatar">
             <span>{user?.name?.charAt(0).toUpperCase()}</span>
+            {isVerified && (
+              <span className="avatar-verified-badge" title="Email Verified">✓</span>
+            )}
           </div>
           <div className="profile-header-info">
-            <h1>{user?.name}</h1>
+            <div className="profile-name-row">
+              <h1>{user?.name}</h1>
+              {isVerified && (
+                <span className="verified-badge">
+                  <FiCheckCircle /> Verified
+                </span>
+              )}
+            </div>
             <span className="role-pill">{getRoleLabel(user?.role)}</span>
             <p className="profile-email"><FiMail /> {user?.email}</p>
           </div>
@@ -119,9 +132,10 @@ const Profile = () => {
         </div>
 
         <div className="profile-body">
-          {/* Info View */}
           {!editMode ? (
             <div className="profile-info-grid">
+
+              {/* ── Personal Info ── */}
               <div className="info-card card">
                 <div className="info-card-header">
                   <FiUser /> Personal Info
@@ -138,8 +152,21 @@ const Profile = () => {
                   <span className="info-label">Role</span>
                   <span className="info-value">{getRoleLabel(user?.role)}</span>
                 </div>
+                {/* Email verification status */}
+                <div className="info-row">
+                  <span className="info-label">
+                    <FiShield style={{ marginRight: '4px', verticalAlign: 'middle' }} />
+                    Email Status
+                  </span>
+                  <span className="info-value">
+                    <span className="status-verified">
+                      <FiCheckCircle /> Email Verified
+                    </span>
+                  </span>
+                </div>
               </div>
 
+              {/* ── Contact Info ── */}
               <div className="info-card card">
                 <div className="info-card-header">
                   <FiPhone /> Contact Info
@@ -161,9 +188,10 @@ const Profile = () => {
                   <span className="info-value">{user?.address?.state || '—'}</span>
                 </div>
               </div>
+
             </div>
           ) : (
-            /* Edit Form */
+            /* ── Edit Form ── */
             <form onSubmit={handleSubmit} className="profile-form card">
               <h2 className="form-section-title"><FiUser /> Personal Information</h2>
 
@@ -189,7 +217,10 @@ const Profile = () => {
                     disabled
                     title="Email cannot be changed"
                   />
-                  <small className="form-hint">Email cannot be changed</small>
+                  <small className="form-hint">
+                    <FiCheckCircle style={{ color: '#2e8b57', marginRight: '4px' }} />
+                    Email verified — cannot be changed
+                  </small>
                 </div>
               </div>
 
@@ -245,7 +276,10 @@ const Profile = () => {
 
               <div className="form-divider" />
 
-              <h2 className="form-section-title"><FiLock /> Change Password <span className="optional-label">(optional)</span></h2>
+              <h2 className="form-section-title">
+                <FiLock /> Change Password
+                <span className="optional-label">(optional)</span>
+              </h2>
 
               <div className="form-row-2">
                 <div className="form-group">
