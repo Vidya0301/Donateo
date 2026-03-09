@@ -83,17 +83,25 @@
 
 .item-row {
   display: grid;
-  grid-template-columns: 150px 1fr auto;
+  grid-template-columns: 120px 1fr auto;
   gap: 1.5rem;
   padding: 1.5rem;
-  align-items: center;
+  align-items: start;
+}
+
+.item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
 }
 
 .item-row img {
-  width: 150px;
-  height: 150px;
-  object-fit: cover;
+  width: 120px;
+  height: 120px;
+  object-fit: contain;
   border-radius: 12px;
+  background: #f8f8f8;
+  padding: 4px;
 }
 
 .item-info h3 {
@@ -406,43 +414,35 @@
   justify-content: center;
 }
 
-.pickup-info-card {
-  background: linear-gradient(135deg, rgba(46, 139, 87, 0.08), rgba(90, 155, 189, 0.08));
-  border-left: 4px solid var(--forest-green);
-  padding: 1rem;
-  margin-top: 1rem;
-  border-radius: 8px;
-}
-
-.pickup-info-card h4 {
-  color: var(--forest-green);
-  margin-bottom: 0.75rem;
-  font-size: 1rem;
-}
-
-.pickup-info-card p {
-  margin: 0.5rem 0;
+/* ── Extra tags: gender, size, food qty ── */
+.item-extra-tags {
   display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0;
+}
+
+.extra-tag {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.2rem 0.55rem;
+  border-radius: 20px;
+  display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.9rem;
-  color: var(--charcoal);
+  gap: 0.25rem;
 }
 
-.pickup-info-card p svg {
-  color: var(--ocean-blue);
+.gender-tag {
+  background: rgba(90, 155, 189, 0.12);
+  color: #2a6a9e;
 }
 
-.status-note {
-  margin-top: 0.75rem;
-  padding: 0.5rem;
-  background: rgba(255, 193, 7, 0.1);
-  border-radius: 6px;
-  font-weight: 500;
-  color: var(--earth-brown);
-}
-
-.status-note.confirmed {
+.size-tag {
   background: rgba(46, 139, 87, 0.1);
-  color: var(--forest-green);
+  color: #2e8b57;
+}
+
+.food-tag {
+  background: rgba(255, 160, 50, 0.12);
+  color: #b36b00;
 }

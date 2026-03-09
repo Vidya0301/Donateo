@@ -14,6 +14,11 @@ const DonateItem = () => {
     image: '',
     condition: 'good',
     quantity: 1,
+    // clothes extras
+    gender: '',
+    clothingSize: '',
+    // food extras
+    foodQuantityUnit: 'kg',
     location: {
       address: '',
       city: '',
@@ -25,20 +30,28 @@ const DonateItem = () => {
   const [imagePreview, setImagePreview] = useState('');
 
   const categories = [
-    { value: 'clothes', label: 'Clothes', icon: '👕' },
-    { value: 'books', label: 'Books', icon: '📚' },
-    { value: 'bags', label: 'Bags', icon: '🎒' },
-    { value: 'food', label: 'Food', icon: '🍎' },
+    { value: 'clothes',   label: 'Clothes',   icon: '👕' },
+    { value: 'books',     label: 'Books',     icon: '📚' },
+    { value: 'bags',      label: 'Bags',      icon: '🎒' },
+    { value: 'food',      label: 'Food',      icon: '🍎' },
     { value: 'household', label: 'Household', icon: '🏠' },
-    { value: 'other', label: 'Other', icon: '✨' }
+    { value: 'other',     label: 'Other',     icon: '✨' }
   ];
 
   const conditions = [
-    { value: 'new', label: 'New' },
+    { value: 'new',      label: 'New' },
     { value: 'like-new', label: 'Like New' },
-    { value: 'good', label: 'Good' },
-    { value: 'fair', label: 'Fair' }
+    { value: 'good',     label: 'Good' },
+    { value: 'fair',     label: 'Fair' }
   ];
+
+  const clothingSizes = {
+    male:   ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'],
+    female: ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'],
+    kids:   ['2-3Y', '4-5Y', '6-7Y', '8-9Y', '10-11Y', '12-13Y', '14-15Y']
+  };
+
+  const foodUnits = ['kg', 'g', 'litre', 'ml', 'packets', 'pieces', 'boxes', 'bags'];
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -49,51 +62,39 @@ const DonateItem = () => {
         location: { ...prev.location, [field]: value }
       }));
     } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
+      setFormData(prev => ({
+        ...prev,
+        [name]: value,
+        // reset size when gender changes
+        ...(name === 'gender' ? { clothingSize: '' } : {})
+      }));
     }
   };
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Check file size (limit to 5MB)
       if (file.size > 5 * 1024 * 1024) {
         toast.error('Image too large. Please use an image under 5MB');
         return;
       }
-
       const reader = new FileReader();
       reader.onloadend = () => {
-        // Compress image
         const img = new Image();
         img.src = reader.result;
         img.onload = () => {
           const canvas = document.createElement('canvas');
           const ctx = canvas.getContext('2d');
-          
-          // Set max dimensions
-          const MAX_WIDTH = 800;
-          const MAX_HEIGHT = 600;
-          let width = img.width;
-          let height = img.height;
-
+          const MAX_WIDTH = 800, MAX_HEIGHT = 600;
+          let width = img.width, height = img.height;
           if (width > height) {
-            if (width > MAX_WIDTH) {
-              height *= MAX_WIDTH / width;
-              width = MAX_WIDTH;
-            }
+            if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
           } else {
-            if (height > MAX_HEIGHT) {
-              width *= MAX_HEIGHT / height;
-              height = MAX_HEIGHT;
-            }
+            if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; }
           }
-
           canvas.width = width;
           canvas.height = height;
           ctx.drawImage(img, 0, 0, width, height);
-
-          // Convert to base64 with compression
           const compressedImage = canvas.toDataURL('image/jpeg', 0.7);
           setImagePreview(compressedImage);
           setFormData(prev => ({ ...prev, image: compressedImage }));
@@ -105,8 +106,18 @@ const DonateItem = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
 
+    // Validate clothes fields
+    if (formData.category === 'clothes' && !formData.gender) {
+      toast.error('Please select gender for clothing');
+      return;
+    }
+    if (formData.category === 'clothes' && !formData.clothingSize) {
+      toast.error('Please select clothing size');
+      return;
+    }
+
+    setLoading(true);
     try {
       await itemsAPI.createItem(formData);
       toast.success('Item submitted for approval!');
@@ -117,6 +128,9 @@ const DonateItem = () => {
       setLoading(false);
     }
   };
+
+  const isClothes = formData.category === 'clothes';
+  const isFood    = formData.category === 'food';
 
   return (
     <div className="donate-page">
@@ -143,18 +157,17 @@ const DonateItem = () => {
           </div>
 
           <form onSubmit={handleSubmit} className="donate-form card">
+
+            {/* Image Upload */}
             <div className="form-group">
               <label className="form-label">Item Photo *</label>
               <div className="image-upload">
                 {imagePreview ? (
                   <div className="image-preview">
                     <img src={imagePreview} alt="Preview" />
-                    <button 
-                      type="button" 
-                      onClick={() => {
-                        setImagePreview('');
-                        setFormData(prev => ({ ...prev, image: '' }));
-                      }}
+                    <button
+                      type="button"
+                      onClick={() => { setImagePreview(''); setFormData(prev => ({ ...prev, image: '' })); }}
                       className="btn btn-sm btn-outline"
                     >
                       Change Image
@@ -164,18 +177,13 @@ const DonateItem = () => {
                   <label className="upload-label">
                     <FiUpload />
                     <span>Click to upload image</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageChange}
-                      required
-                      hidden
-                    />
+                    <input type="file" accept="image/*" onChange={handleImageChange} required hidden />
                   </label>
                 )}
               </div>
             </div>
 
+            {/* Item Name */}
             <div className="form-group">
               <label className="form-label">Item Name *</label>
               <input
@@ -189,55 +197,93 @@ const DonateItem = () => {
               />
             </div>
 
+            {/* Category + Condition + Quantity */}
             <div className="form-row">
               <div className="form-group">
                 <label className="form-label">Category *</label>
-                <select
-                  name="category"
-                  value={formData.category}
-                  onChange={handleChange}
-                  className="form-select"
-                  required
-                >
+                <select name="category" value={formData.category} onChange={handleChange} className="form-select" required>
                   {categories.map(cat => (
-                    <option key={cat.value} value={cat.value}>
-                      {cat.icon} {cat.label}
-                    </option>
+                    <option key={cat.value} value={cat.value}>{cat.icon} {cat.label}</option>
                   ))}
                 </select>
               </div>
 
               <div className="form-group">
                 <label className="form-label">Condition *</label>
-                <select
-                  name="condition"
-                  value={formData.condition}
-                  onChange={handleChange}
-                  className="form-select"
-                  required
-                >
+                <select name="condition" value={formData.condition} onChange={handleChange} className="form-select" required>
                   {conditions.map(cond => (
-                    <option key={cond.value} value={cond.value}>
-                      {cond.label}
-                    </option>
+                    <option key={cond.value} value={cond.value}>{cond.label}</option>
                   ))}
                 </select>
               </div>
 
+              {/* Quantity — for food shows unit selector */}
               <div className="form-group">
                 <label className="form-label">Quantity *</label>
-                <input
-                  type="number"
-                  name="quantity"
-                  value={formData.quantity}
-                  onChange={handleChange}
-                  className="form-control"
-                  min="1"
-                  required
-                />
+                <div className={isFood ? 'food-quantity-row' : ''}>
+                  <input
+                    type="number"
+                    name="quantity"
+                    value={formData.quantity}
+                    onChange={handleChange}
+                    className="form-control"
+                    min="1"
+                    required
+                  />
+                  {isFood && (
+                    <select
+                      name="foodQuantityUnit"
+                      value={formData.foodQuantityUnit}
+                      onChange={handleChange}
+                      className="form-select food-unit-select"
+                    >
+                      {foodUnits.map(u => (
+                        <option key={u} value={u}>{u}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
               </div>
             </div>
 
+            {/* ── Clothes: Gender + Size ── */}
+            {isClothes && (
+              <div className="form-row clothes-extras">
+                <div className="form-group">
+                  <label className="form-label">Gender *</label>
+                  <div className="gender-options">
+                    {['male', 'female', 'kids'].map(g => (
+                      <button
+                        key={g}
+                        type="button"
+                        className={`gender-btn ${formData.gender === g ? 'active' : ''}`}
+                        onClick={() => setFormData(prev => ({ ...prev, gender: g, clothingSize: '' }))}
+                      >
+                        {g === 'male' ? '👨 Male' : g === 'female' ? '👩 Female' : '👧 Kids'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Size *</label>
+                  <div className="size-options">
+                    {(formData.gender ? clothingSizes[formData.gender] : clothingSizes.male).map(size => (
+                      <button
+                        key={size}
+                        type="button"
+                        className={`size-btn ${formData.clothingSize === size ? 'active' : ''}`}
+                        onClick={() => setFormData(prev => ({ ...prev, clothingSize: size }))}
+                      >
+                        {size}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Description */}
             <div className="form-group">
               <label className="form-label">Description *</label>
               <textarea
@@ -250,6 +296,7 @@ const DonateItem = () => {
               />
             </div>
 
+            {/* Location */}
             <div className="form-section-title">
               <h3>Location Information</h3>
             </div>
@@ -270,47 +317,19 @@ const DonateItem = () => {
             <div className="form-row">
               <div className="form-group">
                 <label className="form-label">City *</label>
-                <input
-                  type="text"
-                  name="location.city"
-                  value={formData.location.city}
-                  onChange={handleChange}
-                  className="form-control"
-                  placeholder="City"
-                  required
-                />
+                <input type="text" name="location.city" value={formData.location.city} onChange={handleChange} className="form-control" placeholder="City" required />
               </div>
-
               <div className="form-group">
                 <label className="form-label">State</label>
-                <input
-                  type="text"
-                  name="location.state"
-                  value={formData.location.state}
-                  onChange={handleChange}
-                  className="form-control"
-                  placeholder="State"
-                />
+                <input type="text" name="location.state" value={formData.location.state} onChange={handleChange} className="form-control" placeholder="State" />
               </div>
-
               <div className="form-group">
                 <label className="form-label">Zip Code</label>
-                <input
-                  type="text"
-                  name="location.zipCode"
-                  value={formData.location.zipCode}
-                  onChange={handleChange}
-                  className="form-control"
-                  placeholder="Zip code"
-                />
+                <input type="text" name="location.zipCode" value={formData.location.zipCode} onChange={handleChange} className="form-control" placeholder="Zip code" />
               </div>
             </div>
 
-            <button 
-              type="submit" 
-              className="btn btn-primary btn-large btn-block"
-              disabled={loading}
-            >
+            <button type="submit" className="btn btn-primary btn-large btn-block" disabled={loading}>
               {loading ? 'Submitting...' : 'Submit for Approval'}
             </button>
           </form>

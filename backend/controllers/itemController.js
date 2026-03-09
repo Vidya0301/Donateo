@@ -4,11 +4,22 @@ const { notify, notifyAdmins } = require('../utils/notificationHelper');
 
 const createItem = async (req, res) => {
   try {
-    const { itemName, category, description, image, location, condition, quantity } = req.body;
+    const {
+      itemName, category, description, image, location,
+      condition, quantity,
+      gender, clothingSize,
+      foodQuantityUnit
+    } = req.body;
+
     const item = await Item.create({
-      itemName, category, description, image, location, condition, quantity,
+      itemName, category, description, image, location,
+      condition, quantity,
+      gender:           gender           || undefined,
+      clothingSize:     clothingSize     || undefined,
+      foodQuantityUnit: foodQuantityUnit || undefined,
       donor: req.user._id, status: 'pending', isApproved: false
     });
+
     await User.findByIdAndUpdate(req.user._id, { $push: { itemsDonated: item._id } });
     await notifyAdmins({
       type: 'new_item_posted',
@@ -32,7 +43,10 @@ const getItems = async (req, res) => {
     if (city) query['location.city'] = new RegExp(city, 'i');
     if (status) query.status = status;
     else query.status = { $in: ['available', 'requested'] };
-    if (search) query.$or = [{ itemName: new RegExp(search, 'i') }, { description: new RegExp(search, 'i') }];
+    if (search) query.$or = [
+      { itemName: new RegExp(search, 'i') },
+      { description: new RegExp(search, 'i') }
+    ];
     const items = await Item.find(query)
       .populate('donor', 'name email')
       .populate('receiver', 'name email')
@@ -91,11 +105,19 @@ const requestItem = async (req, res) => {
     const item = await Item.findById(req.params.id).populate('donor', 'name email');
     if (!item) return res.status(404).json({ message: 'Item not found' });
     if (item.status !== 'available') return res.status(400).json({ message: 'Item is not available' });
+
+    // ── Block donor from requesting their own item ──
+    if (item.donor._id.toString() === req.user._id.toString()) {
+      return res.status(400).json({ message: 'You cannot request your own donated item' });
+    }
+
     const alreadyRequested = item.requests.find(r => r.user.toString() === req.user._id.toString());
     if (alreadyRequested) return res.status(400).json({ message: 'You have already requested this item' });
+
     item.requests.push({ user: req.user._id, message });
     item.status = 'requested';
     await item.save();
+
     await notify({
       recipientId: item.donor._id,
       type: 'item_requested',
@@ -203,9 +225,6 @@ const getMyDonations = async (req, res) => {
   }
 };
 
-// @desc    Get items received by user
-// @route   GET /api/items/my/received
-// @access  Private
 const getMyReceivedItems = async (req, res) => {
   try {
     const items = await Item.find({ receiver: req.user._id })
@@ -229,7 +248,6 @@ const getMyReceivedItems = async (req, res) => {
         return itemObj;
       })
     );
-
     res.json(itemsWithPickup);
   } catch (error) {
     res.status(500).json({ message: error.message });

@@ -406,3 +406,133 @@
     gap: 2rem;
   }
 }
+/* ── REPLACE the hand styles in your Home.css with these ── */
+
+.hero-image {
+  position: relative;
+  z-index: 1;
+}
+
+.hero-hand-bg {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 80%;
+  height: 85%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* The hand image */
+.hero-hand-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  opacity: 0.08;          /* very light — barely visible, not odd */
+  filter: sepia(40%) hue-rotate(95deg) saturate(200%);
+  /* no blur — keeps it clean */
+}
+
+/* Floating cards sit above */
+.floating-card {
+  position: absolute;
+  z-index: 3;
+}
+
+@media (max-width: 968px) {
+  .hero-hand-img {
+    opacity: 0.06;
+  }
+}
+
+/* ── Category card — clickable ── */
+.category-card {
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.category-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 12px 32px rgba(46, 139, 87, 0.15);
+}
+
+/* ── Register Popup ── */
+.cat-popup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  animation: catFadeIn 0.2s ease;
+}
+
+@keyframes catFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.cat-popup {
+  background: white;
+  border-radius: 20px;
+  padding: 2.5rem 2rem;
+  max-width: 400px;
+  width: 100%;
+  text-align: center;
+  position: relative;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  animation: catPopIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes catPopIn {
+  from { transform: scale(0.85); opacity: 0; }
+  to   { transform: scale(1);    opacity: 1; }
+}
+
+.cat-popup-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: #f0f0f0;
+  color: #555;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+.cat-popup-close:hover {
+  background: #e24b4b;
+  color: white;
+}
+
+.cat-popup-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.cat-popup h3 {
+  font-size: 1.4rem;
+  color: #1a2e1e;
+  margin-bottom: 0.5rem;
+}
+
+.cat-popup p {
+  color: #666;
+  font-size: 0.95rem;
+  margin-bottom: 1.5rem;
+}
+
+.cat-popup-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}

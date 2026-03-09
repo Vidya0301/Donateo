@@ -1,40 +1,33 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { itemsAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 import { FiFilter, FiMapPin, FiUser, FiPackage } from 'react-icons/fi';
+import { ZoomableImage } from '../components/ImagePreviewModal';
 import './Browse.css';
 
 const Browse = () => {
-  const { user, isReceiver } = useAuth();
+  const { user } = useAuth();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({
-    category: 'all',
-    city: '',
-    search: ''
-  });
+  const [filters, setFilters] = useState({ category: 'all', city: '', search: '' });
 
   const categories = [
-    { value: 'all', label: 'All Categories', icon: '🎯' },
-    { value: 'clothes', label: 'Clothes', icon: '👕' },
-    { value: 'books', label: 'Books', icon: '📚' },
-    { value: 'bags', label: 'Bags', icon: '🎒' },
-    { value: 'food', label: 'Food', icon: '🍎' },
-    { value: 'household', label: 'Household', icon: '🏠' },
-    { value: 'other', label: 'Other', icon: '✨' }
+    { value: 'all',       label: 'All Categories', icon: '🎯' },
+    { value: 'clothes',   label: 'Clothes',         icon: '👕' },
+    { value: 'books',     label: 'Books',           icon: '📚' },
+    { value: 'bags',      label: 'Bags',            icon: '🎒' },
+    { value: 'food',      label: 'Food',            icon: '🍎' },
+    { value: 'household', label: 'Household',       icon: '🏠' },
+    { value: 'other',     label: 'Other',           icon: '✨' }
   ];
 
-  useEffect(() => {
-    fetchItems();
-  }, [filters]);
-
-  const fetchItems = async () => {
+  const fetchItems = useCallback(async () => {
     try {
       setLoading(true);
       const params = {
         ...(filters.category !== 'all' && { category: filters.category }),
-        ...(filters.city && { city: filters.city }),
+        ...(filters.city   && { city:   filters.city   }),
         ...(filters.search && { search: filters.search })
       };
       const response = await itemsAPI.getItems(params);
@@ -44,13 +37,12 @@ const Browse = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters]);
+
+  useEffect(() => { fetchItems(); }, [fetchItems]);
 
   const handleRequest = async (itemId) => {
-    if (!user) {
-      toast.info('Please login to request items');
-      return;
-    }
+    if (!user) { toast.info('Please login to request items'); return; }
     try {
       await itemsAPI.requestItem(itemId, 'I am interested in this item');
       toast.success('Request sent successfully!');
@@ -64,10 +56,13 @@ const Browse = () => {
     const badges = {
       available: <span className="badge badge-success">Available</span>,
       requested: <span className="badge badge-warning">Requested</span>,
-      donated: <span className="badge badge-secondary">Donated</span>
+      donated:   <span className="badge badge-secondary">Donated</span>
     };
     return badges[status] || null;
   };
+
+  // Check if logged-in user is the donor of this item
+  const isOwnItem = (item) => user && item.donor?._id === user._id;
 
   return (
     <div className="browse-page">
@@ -81,39 +76,19 @@ const Browse = () => {
         <div className="filters-section card">
           <div className="filter-group">
             <label><FiFilter /> Category</label>
-            <select
-              value={filters.category}
-              onChange={(e) => setFilters({ ...filters, category: e.target.value })}
-              className="form-select"
-            >
+            <select value={filters.category} onChange={(e) => setFilters({ ...filters, category: e.target.value })} className="form-select">
               {categories.map(cat => (
-                <option key={cat.value} value={cat.value}>
-                  {cat.icon} {cat.label}
-                </option>
+                <option key={cat.value} value={cat.value}>{cat.icon} {cat.label}</option>
               ))}
             </select>
           </div>
-
           <div className="filter-group">
             <label><FiMapPin /> City</label>
-            <input
-              type="text"
-              value={filters.city}
-              onChange={(e) => setFilters({ ...filters, city: e.target.value })}
-              placeholder="Enter city"
-              className="form-control"
-            />
+            <input type="text" value={filters.city} onChange={(e) => setFilters({ ...filters, city: e.target.value })} placeholder="Enter city" className="form-control" />
           </div>
-
           <div className="filter-group">
             <label><FiPackage /> Search</label>
-            <input
-              type="text"
-              value={filters.search}
-              onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-              placeholder="Search items..."
-              className="form-control"
-            />
+            <input type="text" value={filters.search} onChange={(e) => setFilters({ ...filters, search: e.target.value })} placeholder="Search items..." className="form-control" />
           </div>
         </div>
 
@@ -130,13 +105,47 @@ const Browse = () => {
           <div className="items-grid">
             {items.map(item => (
               <div key={item._id} className="item-card card">
-                <div className="item-image">
-                  <img src={item.image || '/placeholder.jpg'} alt={item.itemName} />
-                  {getStatusBadge(item.status)}
+
+                {/* Image + status badge */}
+                <div className="item-image-wrapper">
+                  <ZoomableImage
+                    src={item.image}
+                    name={item.itemName}
+                    style={{ width: '100%', height: '140px', borderRadius: '12px 12px 0 0' }}
+                  />
+                  <div className="item-status-badge">
+                    {getStatusBadge(item.status)}
+                  </div>
                 </div>
+
                 <div className="item-content">
                   <h3>{item.itemName}</h3>
                   <p className="item-description">{item.description}</p>
+
+                  {/* ── Clothes: gender + size tags ── */}
+                  {item.category === 'clothes' && (item.gender || item.clothingSize) && (
+                    <div className="item-extra-tags">
+                      {item.gender && (
+                        <span className="extra-tag gender-tag">
+                          {item.gender === 'male' ? '👨' : item.gender === 'female' ? '👩' : '👧'}
+                          {' '}{item.gender.charAt(0).toUpperCase() + item.gender.slice(1)}
+                        </span>
+                      )}
+                      {item.clothingSize && (
+                        <span className="extra-tag size-tag">Size: {item.clothingSize}</span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ── Food: quantity + unit ── */}
+                  {item.category === 'food' && item.quantity && (
+                    <div className="item-extra-tags">
+                      <span className="extra-tag food-tag">
+                        🍱 Qty: {item.quantity} {item.foodQuantityUnit || ''}
+                      </span>
+                    </div>
+                  )}
+
                   <div className="item-meta">
                     <span className="item-category">
                       {categories.find(c => c.value === item.category)?.icon} {item.category}
@@ -145,18 +154,24 @@ const Browse = () => {
                       <FiMapPin /> {item.location.city}
                     </span>
                   </div>
+
                   <div className="item-donor">
                     <FiUser /> Donated by: {item.donor.name}
                   </div>
-                  {item.status === 'available' && (
-                    <button 
-                      onClick={() => handleRequest(item._id)}
-                      className="btn btn-primary btn-block"
-                    >
+
+                  {/* Hide Request button for donor's own items */}
+                  {item.status === 'available' && !isOwnItem(item) && (
+                    <button onClick={() => handleRequest(item._id)} className="btn btn-primary btn-block">
                       Request Item
                     </button>
                   )}
+
+                  {/* Show "Your Item" label if it's theirs */}
+                  {isOwnItem(item) && (
+                    <div className="own-item-label">📦 Your donated item</div>
+                  )}
                 </div>
+
               </div>
             ))}
           </div>

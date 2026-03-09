@@ -148,3 +148,108 @@
     padding: 1.5rem;
   }
 }
+
+/* ── ADD THESE TO THE BOTTOM OF DonateItem.css ── */
+
+/* Food quantity — number + unit side by side */
+.food-quantity-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.food-quantity-row .form-control {
+  flex: 1;
+}
+
+.food-unit-select {
+  width: 110px;
+  flex-shrink: 0;
+}
+
+/* Clothes extras section */
+.clothes-extras {
+  grid-template-columns: 1fr 1fr;
+  background: rgba(46, 139, 87, 0.04);
+  padding: 1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(46, 139, 87, 0.15);
+  margin-bottom: 0.5rem;
+}
+
+/* Gender toggle buttons */
+.gender-options {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.25rem;
+}
+
+.gender-btn {
+  padding: 0.5rem 1rem;
+  border: 2px solid var(--light-gray);
+  border-radius: 20px;
+  background: white;
+  color: var(--charcoal);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.gender-btn:hover {
+  border-color: var(--forest-green);
+  color: var(--forest-green);
+}
+
+.gender-btn.active {
+  border-color: var(--forest-green);
+  background: var(--forest-green);
+  color: white;
+}
+
+/* Size grid buttons */
+.size-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+}
+
+.size-btn {
+  width: 48px;
+  height: 36px;
+  border: 2px solid var(--light-gray);
+  border-radius: 8px;
+  background: white;
+  color: var(--charcoal);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.size-btn:hover {
+  border-color: var(--forest-green);
+  color: var(--forest-green);
+}
+
+.size-btn.active {
+  border-color: var(--forest-green);
+  background: var(--forest-green);
+  color: white;
+}
+
+/* Kids sizes are wider */
+.size-btn[data-size*="Y"] {
+  width: 60px;
+}
+
+@media (max-width: 768px) {
+  .clothes-extras {
+    grid-template-columns: 1fr;
+  }
+}
