@@ -201,3 +201,116 @@
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(244,165,0,0.4);
 }
+
+/* ── Recommendation Question ── */
+.rating-recommend-group {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--light-gray);
+}
+
+.rating-recommend-q {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-dark);
+  margin-bottom: 0.75rem;
+  text-align: center;
+}
+
+.rating-recommend-btns {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.recommend-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 1.5rem;
+  border-radius: 25px;
+  border: 2px solid var(--light-gray);
+  background: white;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: var(--font-body);
+  color: var(--earth-brown);
+}
+
+.recommend-btn:hover {
+  border-color: var(--forest-green);
+  color: var(--forest-green);
+}
+
+.recommend-yes--active {
+  background: #d4edda;
+  border-color: #2e8b57 !important;
+  color: #155724 !important;
+}
+
+.recommend-no--active {
+  background: #f8d7da;
+  border-color: #dc3545 !important;
+  color: #721c24 !important;
+}
+
+/* ── Extended Modal ── */
+.rating-modal--extended {
+  max-height: 90vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+/* ── Extra Questions ── */
+.extra-questions {
+  margin: 1.25rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  border-top: 1px solid var(--light-gray);
+  padding-top: 1.25rem;
+}
+
+.extra-question-text {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-dark);
+  margin-bottom: 0.6rem;
+  text-align: center;
+}
+
+.extra-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-content: center;
+}
+
+.extra-option-btn {
+  padding: 0.4rem 0.75rem;
+  border-radius: 20px;
+  border: 1.5px solid var(--light-gray);
+  background: white;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: var(--font-body);
+  color: var(--earth-brown);
+  white-space: nowrap;
+}
+
+.extra-option-btn:hover {
+  border-color: var(--forest-green);
+  color: var(--forest-green);
+  background: rgba(46,139,87,0.05);
+}
+
+.extra-option-btn--active {
+  background: var(--forest-green) !important;
+  border-color: var(--forest-green) !important;
+  color: white !important;
+  font-weight: 700;
+}

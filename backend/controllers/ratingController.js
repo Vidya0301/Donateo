@@ -4,7 +4,7 @@ const Item   = require('../models/Item');
 // POST /api/ratings — submit a rating
 const submitRating = async (req, res) => {
   try {
-    const { itemId, rating, review, role } = req.body;
+    const { itemId, rating, review, role, wouldRecommend, extraAnswers } = req.body;
     const reviewerId = req.user._id;
 
     if (!itemId || !rating || !role) {
@@ -44,7 +44,9 @@ const submitRating = async (req, res) => {
       reviewee: revieweeId,
       role,
       rating,
-      review: review || ''
+      review: review || '',
+      wouldRecommend: wouldRecommend ?? null,
+      extraAnswers:   extraAnswers   || {}
     });
 
     res.status(201).json({ message: 'Rating submitted', rating: newRating });

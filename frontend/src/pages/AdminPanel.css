@@ -919,3 +919,188 @@
   font-size: 1rem;
   flex-shrink: 0;
 }
+
+/* ── Ratings Cards ── */
+.ratings-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.rating-admin-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.rating-admin-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  cursor: pointer;
+  transition: background 0.15s;
+  flex-wrap: wrap;
+}
+
+.rating-admin-card-header:hover {
+  background: rgba(46,139,87,0.04);
+}
+
+.rating-admin-card-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.rating-admin-item {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--forest-green);
+}
+
+.rating-admin-card-mid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  flex: 1;
+  min-width: 150px;
+}
+
+.rating-admin-names {
+  font-size: 0.85rem;
+  color: var(--earth-brown);
+}
+
+.rating-admin-card-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.2rem;
+}
+
+.rating-admin-date {
+  font-size: 0.78rem;
+  color: #aaa;
+}
+
+.rating-expand-btn {
+  font-size: 0.75rem;
+  color: var(--forest-green);
+  font-weight: 600;
+}
+
+/* ── Expanded Details ── */
+.rating-admin-details {
+  padding: 1rem 1.25rem 1.25rem;
+  border-top: 1px solid var(--light-gray);
+  background: rgba(46,139,87,0.02);
+}
+
+.rating-admin-review {
+  font-size: 0.88rem;
+  color: #555;
+  font-style: italic;
+  margin-bottom: 1rem;
+  padding: 0.6rem 0.9rem;
+  background: #f9f9f9;
+  border-radius: 8px;
+  border-left: 3px solid var(--sage-green);
+}
+
+.rating-extra-answers {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.extra-answer-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  background: white;
+  border: 1px solid var(--light-gray);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+}
+
+.extra-answer-q {
+  font-size: 0.72rem;
+  color: #999;
+  font-weight: 500;
+}
+
+.extra-answer-v {
+  font-size: 0.85rem;
+  color: var(--forest-green);
+  font-weight: 700;
+}
+
+@media (max-width: 600px) {
+  .rating-extra-answers { grid-template-columns: 1fr; }
+  .rating-admin-card-header { flex-direction: column; align-items: flex-start; }
+}
+
+/* ── Settings Tab ── */
+.settings-admin-section { max-width: 600px; }
+
+.settings-card { padding: 2rem; }
+
+.settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.settings-group-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.settings-group-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.settings-group-header h4 {
+  font-size: 1.1rem;
+  color: var(--forest-green);
+  margin: 0 0 0.25rem;
+}
+
+.settings-group-header p {
+  font-size: 0.85rem;
+  color: var(--earth-brown);
+  margin: 0;
+}
+
+.settings-control { margin-top: 0.5rem; }
+
+.settings-control label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.88rem;
+  margin-bottom: 0.5rem;
+  color: var(--text-dark);
+}
+
+.settings-input-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.settings-input {
+  width: 120px !important;
+  text-align: center;
+  font-size: 1.1rem !important;
+  font-weight: 700 !important;
+}
+
+.settings-hint {
+  font-size: 0.8rem;
+  color: #888;
+  margin-top: 0.5rem;
+}

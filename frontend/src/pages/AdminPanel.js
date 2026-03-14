@@ -85,6 +85,7 @@ const AdminPanel = () => {
   const [supportMessages, setSupportMessages] = useState([]);
   const [supportUnread, setSupportUnread]     = useState(0);
   const [allRatings, setAllRatings]           = useState([]);
+  const [expandedRating, setExpandedRating]   = useState(null);
   const [appReviews, setAppReviews]           = useState({ reviews: [], total: 0, average: null, distribution: {} });
   const [replyText, setReplyText]             = useState({});
   const [expandedMsg, setExpandedMsg]         = useState(null);
@@ -883,53 +884,83 @@ const AdminPanel = () => {
             {allRatings.length === 0 ? (
               <div className="empty-state card"><FiStar /><h3>No ratings yet</h3></div>
             ) : (
-              <div className="ratings-admin-table-wrap">
-                <table className="ratings-admin-table">
-                  <thead>
-                    <tr>
-                      <th>Item</th>
-                      <th>Reviewer</th>
-                      <th>Reviewee</th>
-                      <th>Role</th>
-                      <th>Rating</th>
-                      <th>Review</th>
-                      <th>Date</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {allRatings.map(r => (
-                      <tr key={r._id}>
-                        <td>{r.item?.itemName || '—'}</td>
-                        <td>{r.reviewer?.name || '—'}</td>
-                        <td>{r.reviewee?.name || '—'}</td>
-                        <td>
+              <div className="ratings-cards-list">
+                {allRatings.map(r => {
+                  const isExpanded = expandedRating === r._id;
+                  const ea = r.extraAnswers || {};
+                  const DONOR_LABELS = [
+                    { key: 'communication',     q: 'Communication' },
+                    { key: 'punctuality',        q: 'Punctuality' },
+                    { key: 'carefulness',        q: 'Item Care' },
+                    { key: 'wouldRecommend',     q: 'Suggest to Friends?' },
+                    { key: 'wouldDonateAgain',   q: 'Donate More Items?' },
+                    { key: 'overallExperience',  q: 'Overall Experience' },
+                  ];
+                  const RECEIVER_LABELS = [
+                    { key: 'itemConditionMatch', q: 'Item as Described?' },
+                    { key: 'communication',      q: 'Communication' },
+                    { key: 'punctuality',        q: 'Punctuality' },
+                    { key: 'wouldRecommend',     q: 'Suggest to Friends?' },
+                    { key: 'wouldReceiveAgain',  q: 'Receive More Items?' },
+                    { key: 'overallExperience',  q: 'Overall Experience' },
+                  ];
+                  const OPTS_MAP = {
+                    communication:     ['Poor', 'Average', 'Good', 'Excellent'],
+                    punctuality:       ['Late', 'Slightly late', 'On time', 'Early'],
+                    carefulness:       ['Not careful', 'Somewhat', 'Careful', 'Very careful'],
+                    wouldRecommend:    ['No', 'Maybe', 'Yes', 'Absolutely!'],
+                    wouldDonateAgain:  ['No', 'Maybe', 'Yes', 'Definitely!'],
+                    wouldReceiveAgain: ['No', 'Maybe', 'Yes', 'Definitely!'],
+                    itemConditionMatch:['Not at all', 'Somewhat', 'Mostly', 'Perfectly'],
+                    overallExperience: ['Bad', 'Okay', 'Good', 'Amazing!'],
+                  };
+                  const LABELS_TO_USE = r.role === 'receiver_rates_donor' ? RECEIVER_LABELS : DONOR_LABELS;
+                  return (
+                    <div key={r._id} className="rating-admin-card card">
+                      <div className="rating-admin-card-header" onClick={() => setExpandedRating(isExpanded ? null : r._id)}>
+                        <div className="rating-admin-card-left">
                           <span className={`role-badge ${r.role === 'receiver_rates_donor' ? 'badge-info' : 'badge-success'}`}>
                             {r.role === 'receiver_rates_donor' ? 'Receiver → Donor' : 'Donor → Receiver'}
                           </span>
-                        </td>
-                        <td>
-                          <span className="admin-stars">
-                            {'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}
-                          </span>
-                          <span className="admin-star-num"> {r.rating}/5</span>
-                        </td>
-                        <td className="rating-review-cell">{r.review || <span style={{color:'#aaa'}}>No review</span>}</td>
-                        <td>{new Date(r.createdAt).toLocaleDateString()}</td>
-                        <td>
-                          <button
-                            className="btn btn-sm btn-danger"
+                          <span className="rating-admin-item">{r.item?.itemName || '—'}</span>
+                        </div>
+                        <div className="rating-admin-card-mid">
+                          <span className="rating-admin-names">{r.reviewer?.name} → {r.reviewee?.name}</span>
+                          <span className="admin-stars">{'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)} {r.rating}/5</span>
+                        </div>
+                        <div className="rating-admin-card-right">
+                          <span className="rating-admin-date">{new Date(r.createdAt).toLocaleDateString()}</span>
+                          <span className="rating-expand-btn">{isExpanded ? '▲ Hide' : '▼ Details'}</span>
+                        </div>
+                      </div>
+                      {isExpanded && (
+                        <div className="rating-admin-details">
+                          {r.review && (
+                            <div className="rating-admin-review">
+                              <strong>Review:</strong> "{r.review}"
+                            </div>
+                          )}
+                          <div className="rating-extra-answers">
+                            {LABELS_TO_USE.map(({ key, q }) => (
+                              ea[key] !== undefined && ea[key] !== null ? (
+                                <div key={key} className="extra-answer-row">
+                                  <span className="extra-answer-q">{q}</span>
+                                  <span className="extra-answer-v">{OPTS_MAP[key]?.[ea[key]] || ea[key]}</span>
+                                </div>
+                              ) : null
+                            ))}
+                          </div>
+                          <button className="btn btn-sm btn-danger" style={{marginTop:'0.75rem'}}
                             onClick={async () => {
                               if (!window.confirm('Delete this rating?')) return;
-                              try { await ratingAPI.remove(r._id); setAllRatings(prev => prev.filter(x => x._id !== r._id)); toast.success('Rating deleted'); }
-                              catch { toast.error('Failed to delete'); }
-                            }}
-                          >Delete</button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                              try { await ratingAPI.remove(r._id); setAllRatings(prev => prev.filter(x => x._id !== r._id)); toast.success('Deleted'); }
+                              catch { toast.error('Failed'); }
+                            }}>Delete</button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
