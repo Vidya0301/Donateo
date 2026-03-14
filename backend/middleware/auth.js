@@ -7,13 +7,8 @@ const protect = async (req, res, next) => {
 
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     try {
-      // Get token from header
       token = req.headers.authorization.split(' ')[1];
-
-      // Verify token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-      // Get user from token
       req.user = await User.findById(decoded.id).select('-password');
 
       if (!req.user) {
@@ -33,6 +28,19 @@ const protect = async (req, res, next) => {
 
   if (!token) {
     return res.status(401).json({ message: 'Not authorized, no token' });
+  }
+};
+
+// Optional protect — attaches user if token present, continues as guest if not
+const optionalProtect = async (req, res, next) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return next(); // No token — continue as guest
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = await User.findById(decoded.id).select('-password');
+    next();
+  } catch {
+    next(); // Invalid token — continue as guest
   }
 };
 
@@ -63,4 +71,4 @@ const receiver = (req, res, next) => {
   }
 };
 
-module.exports = { protect, admin, donor, receiver };
+module.exports = { protect, admin, donor, receiver, optionalProtect };

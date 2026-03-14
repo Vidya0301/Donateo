@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiBell, FiX, FiCheck } from 'react-icons/fi';
+import { FiBell, FiX } from 'react-icons/fi';
 import api from '../services/api';
 import './Notificationbell.css';
 
@@ -13,17 +13,13 @@ const NotificationBell = () => {
 
   useEffect(() => {
     fetchNotifications();
-    // Poll every 30 seconds for new notifications
     const interval = setInterval(fetchNotifications, 30000);
     return () => clearInterval(interval);
   }, []);
 
-  // Close dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setOpen(false);
-      }
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setOpen(false);
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -34,20 +30,17 @@ const NotificationBell = () => {
       const res = await api.get('/notifications');
       setNotifications(res.data.notifications);
       setUnreadCount(res.data.unreadCount);
-    } catch (error) {
-      // silently fail
-    }
+    } catch {}
   };
 
   const handleOpen = async () => {
     setOpen(prev => !prev);
     if (!open && unreadCount > 0) {
-      // Mark all as read when opening
       try {
         await api.put('/notifications/read-all');
         setUnreadCount(0);
         setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-      } catch (error) {}
+      } catch {}
     }
   };
 
@@ -62,42 +55,37 @@ const NotificationBell = () => {
       await api.delete('/notifications');
       setNotifications([]);
       setUnreadCount(0);
-    } catch (error) {}
+    } catch {}
   };
 
   const timeAgo = (dateStr) => {
     const diff = Date.now() - new Date(dateStr).getTime();
-    const mins = Math.floor(diff / 60000);
+    const mins  = Math.floor(diff / 60000);
     const hours = Math.floor(mins / 60);
-    const days = Math.floor(hours / 24);
-    if (days > 0) return `${days}d ago`;
+    const days  = Math.floor(hours / 24);
+    if (days  > 0) return `${days}d ago`;
     if (hours > 0) return `${hours}h ago`;
-    if (mins > 0) return `${mins}m ago`;
+    if (mins  > 0) return `${mins}m ago`;
     return 'Just now';
   };
 
-  const getIcon = (type) => {
-    const icons = {
-      welcome: '🌱',
-      new_item_posted: '🆕',
-      item_approved: '✅',
-      item_requested: '🔔',
-      request_approved: '🎉',
-      pickup_details_set: '📍',
-      item_handed_over: '📦',
-      item_received: '💚',
-      new_user_registered: '👤'
-    };
-    return icons[type] || '🔔';
-  };
+  const getIcon = (type) => ({
+    welcome:             '🌱',
+    new_item_posted:     '🆕',
+    item_approved:       '✅',
+    item_requested:      '🔔',
+    request_approved:    '🎉',
+    pickup_details_set:  '📍',
+    item_handed_over:    '📦',
+    item_received:       '💚',
+    new_user_registered: '👤'
+  }[type] || '🔔');
 
   return (
     <div className="notification-bell" ref={dropdownRef}>
       <button className="bell-btn" onClick={handleOpen} aria-label="Notifications">
         <FiBell />
-        {unreadCount > 0 && (
-          <span className="bell-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
-        )}
+        {unreadCount > 0 && <span className="bell-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>}
       </button>
 
       {open && (
@@ -110,7 +98,6 @@ const NotificationBell = () => {
               </button>
             )}
           </div>
-
           <div className="notification-list">
             {notifications.length === 0 ? (
               <div className="notification-empty">

@@ -153,6 +153,51 @@ const emailTemplates = {
     )
   }),
 
+
+
+  request_denied: (itemName, donorName) => ({
+    subject: `Your request for "${itemName}" was not selected`,
+    text: `Hi, unfortunately your request for "${itemName}" was not selected by the donor. Don't give up — browse more items at ${URL}/browse`,
+    html: wrap(
+      '❌ Request Not Selected',
+      `<p style="color:#555;">Hi there,</p>
+       <p style="color:#555;">Unfortunately, your request for <strong style="color:#2e8b57;">"${itemName}"</strong> was not selected by the donor this time.</p>
+       <p style="color:#555;">Don't be discouraged — there are plenty of other items available on Donateo!</p>
+       <p style="color:#888;font-size:0.9rem;">Donor: ${donorName}</p>`,
+      'Browse More Items →', `${URL}/browse`
+    )
+  }),
+
+  pickup_reminder: (recipientName, itemName, location, date, time, role) => ({
+    subject: `⏰ Pickup Reminder: "${itemName}" is tomorrow!`,
+    text: `Hi ${recipientName}, reminder: pickup for "${itemName}" is tomorrow. Location: ${location}, Date: ${date}, Time: ${time}. Visit ${URL}/dashboard.`,
+    html: wrap(
+      '⏰ Pickup Reminder',
+      `<p style="color:#555;">Hi <strong>${recipientName}</strong>,</p>
+       <p style="color:#555;">This is a friendly reminder that your pickup for <strong style="color:#2e8b57;">"${itemName}"</strong> is <strong>tomorrow</strong>!</p>
+       <div style="background:#fff8e7;padding:20px;border-radius:8px;margin:20px 0;border-left:4px solid #f59e0b;">
+         <p style="margin:5px 0;color:#333;">📍 <strong>Location:</strong> ${location}</p>
+         <p style="margin:5px 0;color:#333;">📅 <strong>Date:</strong> ${date}</p>
+         <p style="margin:5px 0;color:#333;">🕐 <strong>Time:</strong> ${time}</p>
+         <p style="margin:5px 0;color:#333;">👤 <strong>Your role:</strong> ${role}</p>
+       </div>
+       <p style="color:#555;">Please make sure to be on time. If you need to reschedule, open the chat and coordinate with the other person.</p>`,
+      'View on Dashboard →', `${URL}/dashboard`
+    )
+  }),
+
+
+  request_denied: (itemName, donorName) => ({
+    subject: `❌ Your request for "${itemName}" was not selected`,
+    text: `Hi, your request for "${itemName}" was not selected by the donor. Keep browsing Donateo for other available items!`,
+    html: wrap(
+      'Request Not Selected',
+      `<p style="color:#555;">Thank you for your interest in <strong style="color:#2e8b57;">"${itemName}"</strong>.</p>
+       <p style="color:#555;">Unfortunately, the donor <strong>${donorName}</strong> has selected another recipient for this item.</p>
+       <p style="color:#555;">Don't be discouraged — there are many more items available on Donateo. Keep browsing!</p>`,
+      'Browse Available Items →', `${URL}/browse`
+    )
+  }),
   pickup_details_set: (receiverName, itemName, location, date, time) => ({
     subject: `📍 Pickup details set for "${itemName}"`,
     text: `Hi ${receiverName}, pickup for "${itemName}": Location: ${location}, Date: ${date}, Time: ${time}. Visit ${URL}/dashboard to confirm.`,

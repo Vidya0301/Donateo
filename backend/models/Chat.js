@@ -58,6 +58,14 @@ const chatSchema = new mongoose.Schema({
     confirmed: {
       type: Boolean,
       default: false
+    },
+    confirmedByReceiver: {
+      type: Boolean,
+      default: false
+    },
+    reminderSent: {
+      type: Boolean,
+      default: false
     }
   },
   status: {

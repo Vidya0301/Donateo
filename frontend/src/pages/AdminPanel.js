@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { adminAPI, chatAPI } from '../services/api';
+import { adminAPI, chatAPI, announcementAPI, categoryAPI, supportAPI, ratingAPI, appReviewAPI, itemsAPI } from '../services/api';
 import { toast } from 'react-toastify';
 import {
   FiUsers, FiPackage, FiCheckCircle, FiXCircle, FiTrendingUp,
-  FiAlertTriangle, FiDownload, FiBarChart2, FiAward
+  FiAlertTriangle, FiDownload, FiBarChart2, FiAward, FiBell, FiTag, FiMail, FiStar
 } from 'react-icons/fi';
 import {
   BarChart, Bar, PieChart, Pie, Cell, LineChart, Line,
@@ -80,6 +80,17 @@ const AdminPanel = () => {
   const [items, setItems]           = useState([]);
   const [allItems, setAllItems]     = useState([]); // for charts/export
   const [chats, setChats]           = useState([]);
+  const [announcements, setAnnouncements] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [supportMessages, setSupportMessages] = useState([]);
+  const [supportUnread, setSupportUnread]     = useState(0);
+  const [allRatings, setAllRatings]           = useState([]);
+  const [appReviews, setAppReviews]           = useState({ reviews: [], total: 0, average: null, distribution: {} });
+  const [replyText, setReplyText]             = useState({});
+  const [expandedMsg, setExpandedMsg]         = useState(null);
+  const [newCategory, setNewCategory] = useState({ label: '', icon: '✨' });
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [newAnnouncement, setNewAnnouncement] = useState({ title: '', message: '', type: 'info', expiresAt: '' });
   const [selectedChat, setSelectedChat]   = useState(null);
   const [selectedItemName, setSelectedItemName] = useState('');
   const [showChat, setShowChat]     = useState(false);
@@ -96,6 +107,11 @@ const AdminPanel = () => {
       ];
 
       if (activeTab === 'chats' || activeTab === 'reports') promises.push(chatAPI.getAllChats());
+      if (activeTab === 'announcements') promises.push(announcementAPI.getAll());
+      if (activeTab === 'categories') promises.push(categoryAPI.getAll());
+      if (activeTab === 'support') promises.push(supportAPI.getAll());
+      if (activeTab === 'ratings') promises.push(ratingAPI.getAll());
+      if (activeTab === 'appreviews') promises.push(appReviewAPI.getAll());
       if (activeTab === 'analytics' || activeTab === 'leaderboard' || activeTab === 'export' || activeTab === 'monthly')
         promises.push(adminAPI.getItems({})); // all items for analytics
 
@@ -105,12 +121,46 @@ const AdminPanel = () => {
       setItems(results[2].data);
       if ((activeTab === 'chats' || activeTab === 'reports') && results[3]) setChats(results[3].data);
       if (['analytics','leaderboard','export','monthly'].includes(activeTab) && results[3]) setAllItems(results[3].data);
+      if (activeTab === 'announcements' && results[3]) setAnnouncements(results[3].data);
+      if (activeTab === 'categories' && results[3]) setCategories(results[3].data);
+      if (activeTab === 'support' && results[3]) setSupportMessages(results[3].data);
+      if (activeTab === 'ratings' && results[3]) setAllRatings(results[3].data);
+      if (activeTab === 'appreviews' && results[3]) setAppReviews(results[3].data);
     } catch (error) {
       toast.error('Failed to load admin data');
     } finally {
       setLoading(false);
     }
   }, [activeTab]);
+
+  // Fetch unread support count on mount
+  useEffect(() => {
+    supportAPI.getUnreadCount().then(r => setSupportUnread(r.data.count)).catch(() => {});
+  }, []);
+
+  const handleMarkRead = async (id) => {
+    try { await supportAPI.markAsRead(id); setSupportMessages(m => m.map(x => x._id === id ? { ...x, status: 'read' } : x)); setSupportUnread(n => Math.max(0, n - 1)); } catch {}
+  };
+
+  const handleReply = async (id) => {
+    const reply = replyText[id];
+    if (!reply?.trim()) { toast.error('Reply cannot be empty'); return; }
+    try {
+      await supportAPI.reply(id, reply);
+      setSupportMessages(m => m.map(x => x._id === id ? { ...x, adminReply: reply, status: 'resolved' } : x));
+      setReplyText(t => ({ ...t, [id]: '' }));
+      toast.success('Reply sent!');
+    } catch { toast.error('Failed to send reply'); }
+  };
+
+  const handleResolve = async (id) => {
+    try { await supportAPI.resolve(id); setSupportMessages(m => m.map(x => x._id === id ? { ...x, status: 'resolved' } : x)); toast.success('Marked as resolved'); } catch {}
+  };
+
+  const handleDeleteMsg = async (id) => {
+    if (!window.confirm('Delete this message?')) return;
+    try { await supportAPI.remove(id); setSupportMessages(m => m.filter(x => x._id !== id)); toast.success('Deleted'); } catch {}
+  };
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -127,6 +177,61 @@ const AdminPanel = () => {
   const handleToggleUser = async (userId, isActive) => {
     try { await adminAPI.updateUserStatus(userId, { isActive: !isActive }); toast.success(`User ${!isActive ? 'activated' : 'deactivated'}`); fetchData(); }
     catch { toast.error('Failed to update user'); }
+  };
+
+  // ── category handlers ──
+  const handleCreateCategory = async () => {
+    if (!newCategory.label) { toast.error('Label is required'); return; }
+    try {
+      await categoryAPI.create(newCategory);
+      toast.success('Category created!');
+      setNewCategory({ label: '', icon: '✨' });
+      fetchData();
+    } catch (e) { toast.error(e.response?.data?.message || 'Failed to create'); }
+  };
+
+  const handleUpdateCategory = async (id) => {
+    try {
+      await categoryAPI.update(id, editingCategory);
+      toast.success('Category updated!');
+      setEditingCategory(null);
+      fetchData();
+    } catch { toast.error('Failed to update'); }
+  };
+
+  const handleToggleCategory = async (id) => {
+    try { await categoryAPI.toggle(id); fetchData(); }
+    catch { toast.error('Failed to toggle'); }
+  };
+
+  const handleDeleteCategory = async (id) => {
+    if (!window.confirm('Delete this category? Items using it will keep the old value.')) return;
+    try { await categoryAPI.remove(id); toast.success('Deleted'); fetchData(); }
+    catch { toast.error('Failed to delete'); }
+  };
+
+  // ── announcement handlers ──
+  const handleCreateAnnouncement = async () => {
+    if (!newAnnouncement.title || !newAnnouncement.message) {
+      toast.error('Title and message are required'); return;
+    }
+    try {
+      await announcementAPI.create(newAnnouncement);
+      toast.success('Announcement created!');
+      setNewAnnouncement({ title: '', message: '', type: 'info', expiresAt: '' });
+      fetchData();
+    } catch { toast.error('Failed to create announcement'); }
+  };
+
+  const handleToggleAnnouncement = async (id) => {
+    try { await announcementAPI.toggle(id); fetchData(); }
+    catch { toast.error('Failed to toggle announcement'); }
+  };
+
+  const handleDeleteAnnouncement = async (id) => {
+    if (!window.confirm('Delete this announcement?')) return;
+    try { await announcementAPI.remove(id); toast.success('Deleted'); fetchData(); }
+    catch { toast.error('Failed to delete'); }
   };
 
   // ── chat helpers ───────────────────────────────────────────
@@ -276,6 +381,17 @@ const AdminPanel = () => {
           <button className={`tab ${activeTab === 'analytics' ? 'active' : ''}`} onClick={() => setActiveTab('analytics')}><FiBarChart2 /> Analytics</button>
           <button className={`tab ${activeTab === 'leaderboard' ? 'active' : ''}`} onClick={() => setActiveTab('leaderboard')}><FiAward /> Leaderboard</button>
           <button className={`tab ${activeTab === 'export' ? 'active' : ''}`} onClick={() => setActiveTab('export')}><FiDownload /> Export</button>
+          <button className={`tab ${activeTab === 'announcements' ? 'active' : ''}`} onClick={() => setActiveTab('announcements')}><FiBell /> Announcements</button>
+          <button className={`tab ${activeTab === 'categories' ? 'active' : ''}`} onClick={() => setActiveTab('categories')}><FiTag /> Categories</button>
+          <button className={`tab tab-support ${activeTab === 'support' ? 'active' : ''}`} onClick={() => setActiveTab('support')}>
+            <FiMail /> Support {supportUnread > 0 && <span className="tab-badge">{supportUnread}</span>}
+          </button>
+          <button className={`tab ${activeTab === 'ratings' ? 'active' : ''}`} onClick={() => setActiveTab('ratings')}>
+            <FiStar /> Ratings
+          </button>
+          <button className={`tab ${activeTab === 'appreviews' ? 'active' : ''}`} onClick={() => setActiveTab('appreviews')}>
+            <FiStar /> App Reviews
+          </button>
         </div>
 
         {loading ? <div className="spinner"></div>
@@ -460,9 +576,455 @@ const AdminPanel = () => {
             </div>
           </div>
 
+        /* ── Categories ── */
+        ) : activeTab === 'categories' ? (
+          <div className="categories-section">
+
+            {/* Create new category */}
+            <div className="category-form card">
+              <h3>🗂️ Add New Category</h3>
+              <div className="cat-form-row">
+                <div className="cat-field">
+                  <label>Icon (emoji)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 🎮"
+                    value={newCategory.icon}
+                    maxLength={4}
+                    onChange={e => setNewCategory(p => ({ ...p, icon: e.target.value }))}
+                  />
+                </div>
+                <div className="cat-field cat-field-grow">
+                  <label>Category Name *</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Electronics"
+                    value={newCategory.label}
+                    onChange={e => setNewCategory(p => ({ ...p, label: e.target.value }))}
+                  />
+                </div>
+                <button onClick={handleCreateCategory} className="btn btn-primary cat-add-btn">
+                  + Add Category
+                </button>
+              </div>
+            </div>
+
+            {/* Categories list */}
+            <h3 className="cat-list-title">All Categories ({categories.length})</h3>
+            <div className="cat-list">
+              {categories.map(cat => (
+                <div key={cat._id} className={`cat-item card ${!cat.isActive ? 'cat-inactive' : ''}`}>
+                  {editingCategory?._id === cat._id ? (
+                    /* Edit mode */
+                    <div className="cat-edit-row">
+                      <input
+                        className="cat-edit-icon"
+                        value={editingCategory.icon}
+                        maxLength={4}
+                        onChange={e => setEditingCategory(p => ({ ...p, icon: e.target.value }))}
+                      />
+                      <input
+                        className="cat-edit-label"
+                        value={editingCategory.label}
+                        onChange={e => setEditingCategory(p => ({ ...p, label: e.target.value }))}
+                      />
+                      <button onClick={() => handleUpdateCategory(cat._id)} className="btn btn-sm btn-primary">Save</button>
+                      <button onClick={() => setEditingCategory(null)} className="btn btn-sm btn-outline">Cancel</button>
+                    </div>
+                  ) : (
+                    /* View mode */
+                    <div className="cat-view-row">
+                      <span className="cat-icon">{cat.icon}</span>
+                      <span className="cat-label">{cat.label}</span>
+                      <span className="cat-value-tag">{cat.value}</span>
+                      <span className={`cat-status ${cat.isActive ? 'cat-active' : 'cat-disabled'}`}>
+                        {cat.isActive ? 'Active' : 'Disabled'}
+                      </span>
+                      <div className="cat-actions">
+                        <button onClick={() => setEditingCategory({ _id: cat._id, label: cat.label, icon: cat.icon })} className="btn btn-sm btn-outline">✏️ Edit</button>
+                        <button onClick={() => handleToggleCategory(cat._id)} className={`btn btn-sm ${cat.isActive ? 'btn-outline' : 'btn-primary'}`}>
+                          {cat.isActive ? 'Disable' : 'Enable'}
+                        </button>
+                        <button onClick={() => handleDeleteCategory(cat._id)} className="btn btn-sm btn-danger">🗑️ Delete</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <p className="cat-note">⚠️ Disabled categories won't appear in the Donate or Browse dropdowns. Deleting a category won't affect existing items.</p>
+          </div>
+
+        /* ── Announcements ── */
+        ) : activeTab === 'announcements' ? (
+          <div className="announcements-section">
+
+            {/* Create form */}
+            <div className="announcement-form card">
+              <h3>📣 Create New Announcement</h3>
+              <div className="ann-form-grid">
+                <div className="ann-field">
+                  <label>Title *</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Platform Maintenance"
+                    value={newAnnouncement.title}
+                    maxLength={100}
+                    onChange={e => setNewAnnouncement(p => ({ ...p, title: e.target.value }))}
+                  />
+                </div>
+                <div className="ann-field ann-field-type">
+                  <label>Type</label>
+                  <select value={newAnnouncement.type} onChange={e => setNewAnnouncement(p => ({ ...p, type: e.target.value }))}>
+                    <option value="info">ℹ️ Info</option>
+                    <option value="warning">⚠️ Warning</option>
+                    <option value="maintenance">🔧 Maintenance</option>
+                    <option value="success">✅ Success</option>
+                  </select>
+                </div>
+                <div className="ann-field ann-field-full">
+                  <label>Message *</label>
+                  <textarea
+                    placeholder="Write your announcement message..."
+                    value={newAnnouncement.message}
+                    maxLength={500}
+                    rows={3}
+                    onChange={e => setNewAnnouncement(p => ({ ...p, message: e.target.value }))}
+                  />
+                  <small>{newAnnouncement.message.length}/500</small>
+                </div>
+                <div className="ann-field ann-field-full">
+                  <label>Expires At (optional)</label>
+                  <div className="ann-expires-row">
+                    <input
+                      type="date"
+                      value={newAnnouncement.expiresAt ? newAnnouncement.expiresAt.split('T')[0] : ''}
+                      onChange={e => {
+                        const timePart = newAnnouncement.expiresAt ? newAnnouncement.expiresAt.split('T')[1] : '09:00 AM';
+                        setNewAnnouncement(p => ({ ...p, expiresAt: e.target.value ? `${e.target.value}T${timePart}` : '' }));
+                      }}
+                      className="ann-date-input"
+                    />
+                    <select
+                      value={newAnnouncement.expiresAt ? newAnnouncement.expiresAt.split('T')[1]?.split(':')[0] || '09' : '09'}
+                      onChange={e => {
+                        const date = newAnnouncement.expiresAt ? newAnnouncement.expiresAt.split('T')[0] : '';
+                        const mins = newAnnouncement.expiresAt ? newAnnouncement.expiresAt.split('T')[1]?.split(':')[1]?.split(' ')[0] || '00' : '00';
+                        const ampm = newAnnouncement.expiresAt?.includes('PM') ? 'PM' : 'AM';
+                        if (date) setNewAnnouncement(p => ({ ...p, expiresAt: `${date}T${e.target.value}:${mins} ${ampm}` }));
+                      }}
+                      className="ann-time-select"
+                    >
+                      {Array.from({length:12},(_,i)=>String(i+1).padStart(2,'0')).map(h=>(
+                        <option key={h} value={h}>{h}</option>
+                      ))}
+                    </select>
+                    <span className="time-sep">:</span>
+                    <select
+                      value={newAnnouncement.expiresAt ? newAnnouncement.expiresAt.split('T')[1]?.split(':')[1]?.split(' ')[0] || '00' : '00'}
+                      onChange={e => {
+                        const date = newAnnouncement.expiresAt ? newAnnouncement.expiresAt.split('T')[0] : '';
+                        const hrs = newAnnouncement.expiresAt ? newAnnouncement.expiresAt.split('T')[1]?.split(':')[0] || '09' : '09';
+                        const ampm = newAnnouncement.expiresAt?.includes('PM') ? 'PM' : 'AM';
+                        if (date) setNewAnnouncement(p => ({ ...p, expiresAt: `${date}T${hrs}:${e.target.value} ${ampm}` }));
+                      }}
+                      className="ann-time-select"
+                    >
+                      {['00','15','30','45'].map(m=>(
+                        <option key={m} value={m}>{m}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={newAnnouncement.expiresAt?.includes('PM') ? 'PM' : 'AM'}
+                      onChange={e => {
+                        const date = newAnnouncement.expiresAt ? newAnnouncement.expiresAt.split('T')[0] : '';
+                        const hrs = newAnnouncement.expiresAt ? newAnnouncement.expiresAt.split('T')[1]?.split(':')[0] || '09' : '09';
+                        const mins = newAnnouncement.expiresAt ? newAnnouncement.expiresAt.split('T')[1]?.split(':')[1]?.split(' ')[0] || '00' : '00';
+                        if (date) setNewAnnouncement(p => ({ ...p, expiresAt: `${date}T${hrs}:${mins} ${e.target.value}` }));
+                      }}
+                      className="ann-time-select ann-ampm-select"
+                    >
+                      <option value="AM">AM</option>
+                      <option value="PM">PM</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <button onClick={handleCreateAnnouncement} className="btn btn-primary ann-submit">
+                <FiBell /> Publish Announcement
+              </button>
+            </div>
+
+            {/* Existing announcements */}
+            <h3 className="ann-list-title">All Announcements ({announcements.length})</h3>
+            {announcements.length === 0 ? (
+              <div className="empty-state card" style={{ padding: '2rem', textAlign: 'center' }}>
+                <FiBell style={{ fontSize: '2.5rem', color: '#ccc', marginBottom: '0.75rem' }} />
+                <p>No announcements yet. Create one above.</p>
+              </div>
+            ) : (
+              <div className="ann-list">
+                {announcements.map(a => {
+                  const typeIcons = { info: 'ℹ️', warning: '⚠️', maintenance: '🔧', success: '✅' };
+                  const isExpired = a.expiresAt && new Date(a.expiresAt) < new Date();
+                  return (
+                    <div key={a._id} className={`ann-item card ${!a.isActive ? 'ann-inactive' : ''} ann-type-${a.type}`}>
+                      <div className="ann-item-left">
+                        <span className="ann-type-icon">{typeIcons[a.type] || 'ℹ️'}</span>
+                        <div className="ann-item-body">
+                          <div className="ann-item-header">
+                            <h4>{a.title}</h4>
+                            <span className={`ann-status-badge ${a.isActive && !isExpired ? 'badge-success' : 'badge-secondary'}`}>
+                              {isExpired ? 'Expired' : a.isActive ? 'Active' : 'Inactive'}
+                            </span>
+                          </div>
+                          <p>{a.message}</p>
+                          <div className="ann-item-meta">
+                            <small>Created: {new Date(a.createdAt).toLocaleDateString()}</small>
+                            {a.expiresAt && <small>Expires: {new Date(a.expiresAt).toLocaleString()}</small>}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="ann-item-actions">
+                        <button onClick={() => handleToggleAnnouncement(a._id)} className={`btn btn-sm ${a.isActive ? 'btn-outline' : 'btn-primary'}`}>
+                          {a.isActive ? 'Deactivate' : 'Activate'}
+                        </button>
+                        <button onClick={() => handleDeleteAnnouncement(a._id)} className="btn btn-sm btn-danger">
+                          <FiXCircle /> Delete
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+        ) : activeTab === 'appreviews' ? (
+          <div className="app-reviews-admin">
+            <h3 className="support-inbox-title"><FiStar /> App Reviews</h3>
+
+            {/* Summary bar */}
+            {appReviews.total > 0 && (
+              <div className="app-reviews-summary card">
+                <div className="app-reviews-avg-block">
+                  <span className="app-reviews-avg-num">{appReviews.average}</span>
+                  <div>
+                    <div className="admin-stars" style={{ fontSize: '1.4rem' }}>
+                      {'★'.repeat(Math.round(appReviews.average))}{'☆'.repeat(5 - Math.round(appReviews.average))}
+                    </div>
+                    <p style={{ color: '#888', fontSize: '0.85rem', margin: '0.2rem 0 0' }}>{appReviews.total} review{appReviews.total !== 1 ? 's' : ''}</p>
+                  </div>
+                </div>
+                <div className="app-reviews-dist">
+                  {[5,4,3,2,1].map(n => (
+                    <div key={n} className="dist-row">
+                      <span className="dist-label">{n}★</span>
+                      <div className="dist-bar-wrap">
+                        <div className="dist-bar" style={{ width: appReviews.total > 0 ? `${((appReviews.distribution[n] || 0) / appReviews.total) * 100}%` : '0%' }} />
+                      </div>
+                      <span className="dist-count">{appReviews.distribution[n] || 0}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {appReviews.total === 0 ? (
+              <div className="empty-state card"><FiStar /><h3>No app reviews yet</h3></div>
+            ) : (
+              <div className="app-reviews-list">
+                {appReviews.reviews.map(r => (
+                  <div key={r._id} className="app-review-card card">
+                    <div className="app-review-card-top">
+                      <div className="rating-avatar-sm" style={{ background: 'linear-gradient(135deg, #2e8b57, #52a878)' }}>
+                        {r.user?.name?.charAt(0).toUpperCase()}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ fontWeight: 700, margin: 0 }}>{r.user?.name}</p>
+                        <p style={{ fontSize: '0.8rem', color: '#888', margin: 0 }}>{r.user?.email}</p>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div className="admin-stars">{'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}</div>
+                        <span style={{ fontSize: '0.78rem', color: '#aaa' }}>{new Date(r.createdAt).toLocaleDateString()}</span>
+                      </div>
+                      <button
+                        className="btn btn-sm btn-danger"
+                        style={{ marginLeft: '1rem' }}
+                        onClick={async () => {
+                          if (!window.confirm('Delete this review?')) return;
+                          try {
+                            await appReviewAPI.remove(r._id);
+                            setAppReviews(prev => ({
+                              ...prev,
+                              reviews: prev.reviews.filter(x => x._id !== r._id),
+                              total: prev.total - 1
+                            }));
+                            toast.success('Review deleted');
+                          } catch { toast.error('Failed to delete'); }
+                        }}
+                      >Delete</button>
+                    </div>
+                    {r.review && (
+                      <p style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid #f0f0f0', fontStyle: 'italic', color: '#555', fontSize: '0.9rem' }}>
+                        &ldquo;{r.review}&rdquo;
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+        ) : activeTab === 'ratings' ? (
+          <div className="ratings-admin-section">
+            <h3 className="support-inbox-title"><FiStar /> All Ratings & Reviews</h3>
+            {allRatings.length === 0 ? (
+              <div className="empty-state card"><FiStar /><h3>No ratings yet</h3></div>
+            ) : (
+              <div className="ratings-admin-table-wrap">
+                <table className="ratings-admin-table">
+                  <thead>
+                    <tr>
+                      <th>Item</th>
+                      <th>Reviewer</th>
+                      <th>Reviewee</th>
+                      <th>Role</th>
+                      <th>Rating</th>
+                      <th>Review</th>
+                      <th>Date</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allRatings.map(r => (
+                      <tr key={r._id}>
+                        <td>{r.item?.itemName || '—'}</td>
+                        <td>{r.reviewer?.name || '—'}</td>
+                        <td>{r.reviewee?.name || '—'}</td>
+                        <td>
+                          <span className={`role-badge ${r.role === 'receiver_rates_donor' ? 'badge-info' : 'badge-success'}`}>
+                            {r.role === 'receiver_rates_donor' ? 'Receiver → Donor' : 'Donor → Receiver'}
+                          </span>
+                        </td>
+                        <td>
+                          <span className="admin-stars">
+                            {'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}
+                          </span>
+                          <span className="admin-star-num"> {r.rating}/5</span>
+                        </td>
+                        <td className="rating-review-cell">{r.review || <span style={{color:'#aaa'}}>No review</span>}</td>
+                        <td>{new Date(r.createdAt).toLocaleDateString()}</td>
+                        <td>
+                          <button
+                            className="btn btn-sm btn-danger"
+                            onClick={async () => {
+                              if (!window.confirm('Delete this rating?')) return;
+                              try { await ratingAPI.remove(r._id); setAllRatings(prev => prev.filter(x => x._id !== r._id)); toast.success('Rating deleted'); }
+                              catch { toast.error('Failed to delete'); }
+                            }}
+                          >Delete</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+        ) : activeTab === 'support' ? (
+          <div className="support-inbox">
+            <h3 className="support-inbox-title">
+              <FiMail /> Support Inbox
+              {supportUnread > 0 && <span className="support-unread-badge">{supportUnread} unread</span>}
+            </h3>
+            {supportMessages.length === 0 ? (
+              <div className="empty-state card" style={{ padding: '2rem', textAlign: 'center' }}>
+                <FiMail style={{ fontSize: '2.5rem', color: '#ccc', marginBottom: '0.75rem' }} />
+                <p>No support messages yet.</p>
+              </div>
+            ) : (
+              <div className="support-list">
+                {supportMessages.map(msg => (
+                  <div key={msg._id} className={`support-card card ${msg.status === 'unread' ? 'support-unread' : ''} ${msg.status === 'resolved' ? 'support-resolved' : ''}`}>
+                    <div className="support-card-header" onClick={() => { setExpandedMsg(expandedMsg === msg._id ? null : msg._id); if (msg.status === 'unread') handleMarkRead(msg._id); }}>
+                      <div className="support-card-left">
+                        <div className="support-sender">
+                          <span className="support-name">{msg.name}</span>
+                          <span className="support-email">{msg.email}</span>
+                          {msg.userId && <span className="support-registered">✅ Registered User</span>}
+                        </div>
+                        <div className="support-subject">{msg.subject}</div>
+                      </div>
+                      <div className="support-card-right">
+                        <span className={`support-status-badge ${msg.status === 'unread' ? 'badge-danger' : msg.status === 'resolved' ? 'badge-success' : 'badge-warning'}`}>
+                          {msg.status === 'unread' ? '🔴 Unread' : msg.status === 'resolved' ? '✅ Resolved' : '👁 Read'}
+                        </span>
+                        <span className="support-date">{new Date(msg.createdAt).toLocaleDateString()}</span>
+                        <button className="btn btn-sm btn-danger support-delete" onClick={e => { e.stopPropagation(); handleDeleteMsg(msg._id); }}>
+                          <FiXCircle />
+                        </button>
+                      </div>
+                    </div>
+                    {expandedMsg === msg._id && (
+                      <div className="support-card-body">
+                        <div className="support-message-text">
+                          <strong>Message:</strong>
+                          <p>{msg.message}</p>
+                        </div>
+                        {msg.adminReply && (
+                          <div className="support-reply-sent">
+                            <strong>✉️ Your Reply:</strong>
+                            <p>{msg.adminReply}</p>
+                            <small>Replied: {new Date(msg.repliedAt).toLocaleString()}</small>
+                          </div>
+                        )}
+                        {msg.status !== 'resolved' && (
+                          <div className="support-reply-form">
+                            <textarea
+                              value={replyText[msg._id] || ''}
+                              onChange={e => setReplyText(t => ({ ...t, [msg._id]: e.target.value }))}
+                              placeholder="Type your reply..."
+                              className="form-control"
+                              rows="3"
+                            />
+                            <div className="support-reply-actions">
+                              <button onClick={() => handleReply(msg._id)} className="btn btn-primary btn-sm">
+                                <FiMail /> Send Reply
+                              </button>
+                              <button onClick={() => handleResolve(msg._id)} className="btn btn-outline btn-sm">
+                                <FiCheckCircle /> Mark Resolved
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
         /* ── Items (pending / all) ── */
         ) : (
           <div className="items-list">
+            {activeTab === 'all' && (
+              <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:'1rem' }}>
+                <button className="btn btn-sm btn-outline" style={{ display:'flex', alignItems:'center', gap:'0.4rem' }}
+                  onClick={async () => {
+                    if (!window.confirm('Geocode all items missing GPS? This may take a minute (1 req/sec per item).')) return;
+                    try {
+                      const res = await itemsAPI.geocodeItems();
+                      toast.success(res.data.message);
+                    } catch { toast.error('Geocoding failed'); }
+                  }}>
+                  📍 Fix Missing GPS Coords
+                </button>
+              </div>
+            )}
             {items.map(item => (
               <div key={item._id} className="item-row card">
                 <ZoomableImage src={item.image} name={item.itemName} className="item-row-img" style={{ width: '110px', height: '110px', borderRadius: '10px', flexShrink: 0 }} />

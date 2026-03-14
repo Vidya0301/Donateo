@@ -1,3 +1,5 @@
+const https = require('https');
+const { uploadImage } = require('../utils/cloudinaryUpload');
 const Item = require('../models/Item');
 const User = require('../models/User');
 const { notify, notifyAdmins } = require('../utils/notificationHelper');
@@ -11,8 +13,9 @@ const createItem = async (req, res) => {
       foodQuantityUnit
     } = req.body;
 
+    const imageUrl = await uploadImage(image);
     const item = await Item.create({
-      itemName, category, description, image, location,
+      itemName, category, description, image: imageUrl, location,
       condition, quantity,
       gender:           gender           || undefined,
       clothingSize:     clothingSize     || undefined,
@@ -37,21 +40,53 @@ const createItem = async (req, res) => {
 
 const getItems = async (req, res) => {
   try {
-    const { category, city, status, search } = req.query;
+    const { category, city, status, search, condition, sortBy } = req.query;
+
     let query = { isApproved: true };
+
     if (category && category !== 'all') query.category = category;
-    if (city) query['location.city'] = new RegExp(city, 'i');
+    if (city && city.trim()) query['location.city'] = new RegExp(city.trim(), 'i');
     if (status) query.status = status;
     else query.status = { $in: ['available', 'requested'] };
-    if (search) query.$or = [
-      { itemName: new RegExp(search, 'i') },
-      { description: new RegExp(search, 'i') }
-    ];
+    if (condition && condition !== 'all') query.condition = condition;
+    if (search && search.trim()) {
+      query.$or = [
+        { itemName:    new RegExp(search.trim(), 'i') },
+        { description: new RegExp(search.trim(), 'i') }
+      ];
+    }
+
+    let sort = { createdAt: -1 };
+    if (sortBy === 'oldest') sort = { createdAt:  1 };
+    if (sortBy === 'az')     sort = { itemName:    1 };
+    if (sortBy === 'za')     sort = { itemName:   -1 };
+
     const items = await Item.find(query)
       .populate('donor', 'name email')
       .populate('receiver', 'name email')
-      .sort({ createdAt: -1 });
-    res.json(items);
+      .sort(sort);
+
+    const donorIds = [...new Set(items.map(i => i.donor?._id?.toString()).filter(Boolean))];
+    const completedCounts = await Promise.all(
+      donorIds.map(async (donorId) => {
+        const count = await Item.countDocuments({ donor: donorId, status: 'donated' });
+        return { donorId, count };
+      })
+    );
+    const countMap = {};
+    completedCounts.forEach(({ donorId, count }) => { countMap[donorId] = count; });
+
+    const itemsWithBadge = items.map(item => {
+      const obj = item.toObject();
+      obj.donorCompletedCount = countMap[item.donor?._id?.toString()] || 0;
+      // Flag if the current user has an active request on this item
+      obj.userHasRequested = req.user
+        ? obj.requests?.some(r => r.user?.toString() === req.user._id.toString())
+        : false;
+      return obj;
+    });
+
+    res.json(itemsWithBadge);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -106,7 +141,6 @@ const requestItem = async (req, res) => {
     if (!item) return res.status(404).json({ message: 'Item not found' });
     if (item.status !== 'available') return res.status(400).json({ message: 'Item is not available' });
 
-    // ── Block donor from requesting their own item ──
     if (item.donor._id.toString() === req.user._id.toString()) {
       return res.status(400).json({ message: 'You cannot request your own donated item' });
     }
@@ -254,8 +288,117 @@ const getMyReceivedItems = async (req, res) => {
   }
 };
 
+const toggleWishlist = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    const itemId = req.params.id;
+    const idx = user.wishlist.findIndex(id => id.toString() === itemId);
+    if (idx === -1) {
+      user.wishlist.push(itemId);
+      await user.save();
+      return res.json({ saved: true, message: 'Item saved to wishlist' });
+    } else {
+      user.wishlist.splice(idx, 1);
+      await user.save();
+      return res.json({ saved: false, message: 'Item removed from wishlist' });
+    }
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const getWishlist = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).populate({
+      path: 'wishlist',
+      populate: { path: 'donor', select: 'name' }
+    });
+    const available = user.wishlist.filter(
+      item => item && item.status === 'available' && item.isApproved
+    );
+    res.json(available);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const nominatimGeocode = (city) => new Promise((resolve) => {
+  const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city)}&format=json&limit=1`;
+  const options = { headers: { 'User-Agent': 'Donateo/1.0 contact@donateo.com' } };
+  https.get(url, options, (res) => {
+    let data = '';
+    res.on('data', chunk => { data += chunk; });
+    res.on('end', () => {
+      try { resolve(JSON.parse(data)); }
+      catch (e) { console.error('[Geocode] JSON parse error:', e.message); resolve([]); }
+    });
+  }).on('error', (e) => { console.error('[Geocode] HTTPS error:', e.message); resolve([]); });
+});
+
+const geocodeItems = async (req, res) => {
+  try {
+    const items = await Item.find({
+      $or: [{ 'location.lat': { $exists: false } }, { 'location.lat': null }],
+      isApproved: true
+    });
+    console.log(`[Geocode] Found ${items.length} items to geocode`);
+    let updated = 0;
+    for (const item of items) {
+      const city = item.location?.city;
+      if (!city) continue;
+      try {
+        const data = await nominatimGeocode(city);
+        if (data && data[0]) {
+          item.location.lat = parseFloat(data[0].lat);
+          item.location.lng = parseFloat(data[0].lon);
+          await item.save();
+          updated++;
+        }
+        await new Promise(resolve => setTimeout(resolve, 1100));
+      } catch (err) {
+        console.error(`[Geocode] Error for ${item.itemName}:`, err.message);
+      }
+    }
+    res.json({ message: `Geocoded ${updated} of ${items.length} items` });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const denyRequest = async (req, res) => {
+  try {
+    const item = await Item.findById(req.params.id).populate('donor', 'name');
+    if (!item) return res.status(404).json({ message: 'Item not found' });
+    if (item.donor._id.toString() !== req.user._id.toString())
+      return res.status(403).json({ message: 'Not authorized' });
+
+    const userId = req.params.userId;
+    item.requests = item.requests.filter(r => r.user?.toString() !== userId);
+    // Revert to available so others can request
+    if (item.status === 'requested') {
+      item.status = 'available';
+    }
+    await item.save();
+
+    await notify({
+      recipientId:   userId,
+      type:          'request_denied',
+      title:         '❌ Request Not Selected',
+      message:       `Sorry, your request for "${item.itemName}" was not selected by the donor. Keep browsing for other items!`,
+      link:          '/browse',
+      emailTemplate: 'request_denied',
+      emailData:     [item.itemName, item.donor.name]
+    });
+
+    res.json({ message: 'Request denied', item });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   createItem, getItems, getItemById, updateItem, deleteItem,
   requestItem, donateItem, markAsDonated, markAsReceived,
-  getMyDonations, getMyReceivedItems
+  getMyDonations, getMyReceivedItems, toggleWishlist, getWishlist,
+  geocodeItems, denyRequest
 };

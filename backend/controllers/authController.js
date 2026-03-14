@@ -1,5 +1,7 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+const User   = require('../models/User');
+const Item   = require('../models/Item');
+const Rating = require('../models/Rating');
 const OTP = require('../models/OTP');
 const { sendEmail } = require('../utils/emailService');
 
@@ -235,4 +237,93 @@ const updateProfile = async (req, res) => {
   }
 };
 
-module.exports = { register, verifyOTP, resendOTP, login, getMe, updateProfile };
+
+// GET /api/auth/notification-preferences
+const getNotificationPreferences = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select('notificationPreferences');
+    const defaults = {
+      itemApproved:    { inApp: true, email: true },
+      requestReceived: { inApp: true, email: true },
+      requestApproved: { inApp: true, email: true },
+      pickupScheduled: { inApp: true, email: true },
+      itemHandedOver:  { inApp: true, email: true },
+      itemReceived:    { inApp: true, email: true },
+      pickupReminder:  { inApp: true, email: true }
+    };
+    // Merge saved prefs with defaults
+    const prefs = {};
+    for (const key of Object.keys(defaults)) {
+      prefs[key] = {
+        inApp: user.notificationPreferences?.[key]?.inApp ?? true,
+        email: user.notificationPreferences?.[key]?.email ?? true
+      };
+    }
+    res.json(prefs);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// PUT /api/auth/notification-preferences
+const updateNotificationPreferences = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    user.notificationPreferences = req.body;
+    await user.save();
+    res.json({ message: 'Preferences saved', preferences: user.notificationPreferences });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
+// GET /api/auth/user/:userId/public — public donor profile (no auth required)
+const getPublicProfile = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Basic user info (no sensitive fields)
+    const user = await User.findById(userId).select('name role createdAt address');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    // All donated items (status = donated, approved)
+    const donatedItems = await Item.find({ donor: userId, status: 'donated', isApproved: true })
+      .select('itemName description category image condition location donorConfirmedAt updatedAt')
+      .sort({ updatedAt: -1 });
+
+    // Active items (available/requested)
+    const activeItems = await Item.find({ donor: userId, status: { $in: ['available', 'requested'] }, isApproved: true })
+      .select('itemName description category image condition location createdAt status')
+      .sort({ createdAt: -1 });
+
+    // Donation count for badge
+    const completedCount = donatedItems.length;
+
+    // Ratings received as a donor
+    const ratings = await Rating.find({ reviewee: userId })
+      .populate('reviewer', 'name')
+      .populate('item', 'itemName')
+      .sort({ createdAt: -1 })
+      .limit(10);
+
+    const avgRating = ratings.length > 0
+      ? (ratings.reduce((s, r) => s + r.rating, 0) / ratings.length).toFixed(1)
+      : null;
+
+    // Member since
+    res.json({
+      user: { name: user.name, role: user.role, city: user.address?.city, memberSince: user.createdAt },
+      completedCount,
+      activeItems,
+      donatedItems,
+      ratings: { average: avgRating, total: ratings.length, list: ratings }
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+module.exports = { register, verifyOTP, resendOTP, login, getMe, updateProfile, getNotificationPreferences,
+  updateNotificationPreferences, getPublicProfile
+};

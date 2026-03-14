@@ -2,28 +2,42 @@ const Notification = require('../models/Notification');
 const { sendEmail } = require('./emailService');
 const User = require('../models/User');
 
+// Maps notification type → preference key
+const PREF_MAP = {
+  item_approved:    'itemApproved',
+  request_received: 'requestReceived',
+  request_approved: 'requestApproved',
+  request_denied:   'requestApproved', // reuse requestApproved pref
+  pickup_scheduled: 'pickupScheduled',
+  item_handed_over: 'itemHandedOver',
+  item_received:    'itemReceived',
+  pickup_reminder:  'pickupReminder',
+  request_denied:   'requestReceived'
+};
+
 /**
  * Create an in-app notification and send email
- * @param {Object} options
- * @param {String} options.recipientId - User ID to notify
- * @param {String} options.type - Notification type
- * @param {String} options.title - Short title
- * @param {String} options.message - Full message
- * @param {String} options.link - Frontend link
- * @param {String} options.emailTemplate - Email template name
- * @param {Array}  options.emailData - Args for email template
+ * Respects user's notificationPreferences.
  */
 const notify = async ({ recipientId, type, title, message, link = '/dashboard', emailTemplate, emailData = [] }) => {
   try {
-    // 1. Create in-app notification
-    await Notification.create({ recipient: recipientId, type, title, message, link });
+    const user = await User.findById(recipientId).select('email notificationPreferences');
+    if (!user) return;
 
-    // 2. Send email if template provided
-    if (emailTemplate) {
-      const user = await User.findById(recipientId).select('email');
-      if (user?.email) {
-        await sendEmail(user.email, emailTemplate, emailData);
-      }
+    const prefKey = PREF_MAP[type];
+    const prefs   = user.notificationPreferences;
+
+    // Check in-app pref (default true if prefs not set)
+    const sendInApp = !prefKey || !prefs || prefs[prefKey]?.inApp !== false;
+    // Check email pref
+    const sendMail  = !prefKey || !prefs || prefs[prefKey]?.email !== false;
+
+    if (sendInApp) {
+      await Notification.create({ recipient: recipientId, type, title, message, link });
+    }
+
+    if (emailTemplate && sendMail && user.email) {
+      await sendEmail(user.email, emailTemplate, emailData);
     }
   } catch (error) {
     console.error('Notification error:', error.message);
@@ -31,7 +45,7 @@ const notify = async ({ recipientId, type, title, message, link = '/dashboard', 
 };
 
 /**
- * Notify all admins
+ * Notify all admins (admins always get all notifications)
  */
 const notifyAdmins = async ({ type, title, message, link = '/admin', emailTemplate, emailData = [] }) => {
   try {

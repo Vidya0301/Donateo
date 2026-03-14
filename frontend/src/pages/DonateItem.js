@@ -1,42 +1,93 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { itemsAPI } from '../services/api';
+import { itemsAPI, categoryAPI } from '../services/api';
 import { toast } from 'react-toastify';
-import { FiUpload, FiPackage } from 'react-icons/fi';
+import { FiUpload, FiPackage, FiMapPin } from 'react-icons/fi';
 import './DonateItem.css';
 
 const DonateItem = () => {
   const navigate = useNavigate();
+  const [categories, setCategories] = useState([]);
   const [formData, setFormData] = useState({
     itemName: '',
-    category: 'clothes',
+    category: '',
     description: '',
     image: '',
     condition: 'good',
     quantity: 1,
-    // clothes extras
     gender: '',
     clothingSize: '',
-    // food extras
     foodQuantityUnit: 'kg',
-    location: {
-      address: '',
-      city: '',
-      state: '',
-      zipCode: ''
-    }
+    location: { address: '', city: '', state: '', zipCode: '', lat: null, lng: null }
   });
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading]           = useState(false);
   const [imagePreview, setImagePreview] = useState('');
+  const [locating, setLocating]         = useState(false);
 
-  const categories = [
-    { value: 'clothes',   label: 'Clothes',   icon: '👕' },
-    { value: 'books',     label: 'Books',     icon: '📚' },
-    { value: 'bags',      label: 'Bags',      icon: '🎒' },
-    { value: 'food',      label: 'Food',      icon: '🍎' },
-    { value: 'household', label: 'Household', icon: '🏠' },
-    { value: 'other',     label: 'Other',     icon: '✨' }
-  ];
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await categoryAPI.getActive();
+        setCategories(res.data);
+        if (res.data.length > 0) setFormData(prev => ({ ...prev, category: res.data[0].value }));
+      } catch {
+        const fallback = [
+          { value: 'clothes',   label: 'Clothes',   icon: '👕' },
+          { value: 'books',     label: 'Books',     icon: '📚' },
+          { value: 'bags',      label: 'Bags',      icon: '🎒' },
+          { value: 'food',      label: 'Food',      icon: '🍎' },
+          { value: 'household', label: 'Household', icon: '🏠' },
+          { value: 'other',     label: 'Other',     icon: '✨' },
+        ];
+        setCategories(fallback);
+        setFormData(prev => ({ ...prev, category: 'clothes' }));
+      }
+    };
+    fetchCategories();
+  }, []);
+
+  // ── Auto-detect location using browser geolocation ──
+  const handleDetectLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error('Geolocation is not supported by your browser');
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async ({ coords: { latitude: lat, longitude: lng } }) => {
+        try {
+          // Reverse geocode using free OpenStreetMap Nominatim API
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`
+          );
+          const data = await res.json();
+          const addr = data.address || {};
+          setFormData(prev => ({
+            ...prev,
+            location: {
+              address: addr.road || addr.suburb || addr.neighbourhood || '',
+              city:    addr.city || addr.town || addr.village || addr.county || '',
+              state:   addr.state || '',
+              zipCode: addr.postcode || '',
+              lat,
+              lng
+            }
+          }));
+          toast.success('📍 Location detected and filled in!');
+        } catch {
+          setFormData(prev => ({ ...prev, location: { ...prev.location, lat, lng } }));
+          toast.info('📍 Coordinates saved — please verify address details');
+        }
+        setLocating(false);
+      },
+      (err) => {
+        setLocating(false);
+        if (err.code === 1) toast.error('Location permission denied. Please allow access and try again.');
+        else toast.error('Could not detect location. Please enter manually.');
+      },
+      { timeout: 10000, maximumAge: 60000 }
+    );
+  };
 
   const conditions = [
     { value: 'new',      label: 'New' },
@@ -57,15 +108,11 @@ const DonateItem = () => {
     const { name, value } = e.target;
     if (name.startsWith('location.')) {
       const field = name.split('.')[1];
-      setFormData(prev => ({
-        ...prev,
-        location: { ...prev.location, [field]: value }
-      }));
+      setFormData(prev => ({ ...prev, location: { ...prev.location, [field]: value } }));
     } else {
       setFormData(prev => ({
         ...prev,
         [name]: value,
-        // reset size when gender changes
         ...(name === 'gender' ? { clothingSize: '' } : {})
       }));
     }
@@ -73,50 +120,33 @@ const DonateItem = () => {
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error('Image too large. Please use an image under 5MB');
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const img = new Image();
-        img.src = reader.result;
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-          const MAX_WIDTH = 800, MAX_HEIGHT = 600;
-          let width = img.width, height = img.height;
-          if (width > height) {
-            if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
-          } else {
-            if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; }
-          }
-          canvas.width = width;
-          canvas.height = height;
-          ctx.drawImage(img, 0, 0, width, height);
-          const compressedImage = canvas.toDataURL('image/jpeg', 0.7);
-          setImagePreview(compressedImage);
-          setFormData(prev => ({ ...prev, image: compressedImage }));
-        };
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { toast.error('Image too large. Max 5MB'); return; }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const img = new Image();
+      img.src = reader.result;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const MAX_W = 800, MAX_H = 600;
+        let w = img.width, h = img.height;
+        if (w > h) { if (w > MAX_W) { h *= MAX_W / w; w = MAX_W; } }
+        else        { if (h > MAX_H) { w *= MAX_H / h; h = MAX_H; } }
+        canvas.width = w; canvas.height = h;
+        ctx.drawImage(img, 0, 0, w, h);
+        const compressed = canvas.toDataURL('image/jpeg', 0.7);
+        setImagePreview(compressed);
+        setFormData(prev => ({ ...prev, image: compressed }));
       };
-      reader.readAsDataURL(file);
-    }
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    // Validate clothes fields
-    if (formData.category === 'clothes' && !formData.gender) {
-      toast.error('Please select gender for clothing');
-      return;
-    }
-    if (formData.category === 'clothes' && !formData.clothingSize) {
-      toast.error('Please select clothing size');
-      return;
-    }
-
+    if (formData.category === 'clothes' && !formData.gender) { toast.error('Please select gender'); return; }
+    if (formData.category === 'clothes' && !formData.clothingSize) { toast.error('Please select size'); return; }
     setLoading(true);
     try {
       await itemsAPI.createItem(formData);
@@ -124,9 +154,7 @@ const DonateItem = () => {
       navigate('/dashboard');
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to submit item');
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   const isClothes = formData.category === 'clothes';
@@ -152,7 +180,7 @@ const DonateItem = () => {
               <li>Respond promptly to requests</li>
             </ul>
             <div className="info-note">
-              <p><strong>Note:</strong> All donations are reviewed by our admin team before being published.</p>
+              <p><strong>Note:</strong> All donations are reviewed before being published.</p>
             </div>
           </div>
 
@@ -165,11 +193,8 @@ const DonateItem = () => {
                 {imagePreview ? (
                   <div className="image-preview">
                     <img src={imagePreview} alt="Preview" />
-                    <button
-                      type="button"
-                      onClick={() => { setImagePreview(''); setFormData(prev => ({ ...prev, image: '' })); }}
-                      className="btn btn-sm btn-outline"
-                    >
+                    <button type="button" className="btn btn-sm btn-outline"
+                      onClick={() => { setImagePreview(''); setFormData(prev => ({ ...prev, image: '' })); }}>
                       Change Image
                     </button>
                   </div>
@@ -186,15 +211,8 @@ const DonateItem = () => {
             {/* Item Name */}
             <div className="form-group">
               <label className="form-label">Item Name *</label>
-              <input
-                type="text"
-                name="itemName"
-                value={formData.itemName}
-                onChange={handleChange}
-                className="form-control"
-                placeholder="e.g., Winter Jacket, Math Textbook"
-                required
-              />
+              <input type="text" name="itemName" value={formData.itemName} onChange={handleChange}
+                className="form-control" placeholder="e.g., Winter Jacket, Math Textbook" required />
             </div>
 
             {/* Category + Condition + Quantity */}
@@ -202,79 +220,52 @@ const DonateItem = () => {
               <div className="form-group">
                 <label className="form-label">Category *</label>
                 <select name="category" value={formData.category} onChange={handleChange} className="form-select" required>
-                  {categories.map(cat => (
-                    <option key={cat.value} value={cat.value}>{cat.icon} {cat.label}</option>
-                  ))}
+                  {categories.map(cat => <option key={cat.value} value={cat.value}>{cat.icon} {cat.label}</option>)}
                 </select>
               </div>
-
               <div className="form-group">
                 <label className="form-label">Condition *</label>
                 <select name="condition" value={formData.condition} onChange={handleChange} className="form-select" required>
-                  {conditions.map(cond => (
-                    <option key={cond.value} value={cond.value}>{cond.label}</option>
-                  ))}
+                  {conditions.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                 </select>
               </div>
-
-              {/* Quantity — for food shows unit selector */}
               <div className="form-group">
                 <label className="form-label">Quantity *</label>
                 <div className={isFood ? 'food-quantity-row' : ''}>
-                  <input
-                    type="number"
-                    name="quantity"
-                    value={formData.quantity}
-                    onChange={handleChange}
-                    className="form-control"
-                    min="1"
-                    required
-                  />
+                  <input type="number" name="quantity" value={formData.quantity} onChange={handleChange}
+                    className="form-control" min="1" required />
                   {isFood && (
-                    <select
-                      name="foodQuantityUnit"
-                      value={formData.foodQuantityUnit}
-                      onChange={handleChange}
-                      className="form-select food-unit-select"
-                    >
-                      {foodUnits.map(u => (
-                        <option key={u} value={u}>{u}</option>
-                      ))}
+                    <select name="foodQuantityUnit" value={formData.foodQuantityUnit} onChange={handleChange}
+                      className="form-select food-unit-select">
+                      {foodUnits.map(u => <option key={u} value={u}>{u}</option>)}
                     </select>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* ── Clothes: Gender + Size ── */}
+            {/* Clothes extras */}
             {isClothes && (
               <div className="form-row clothes-extras">
                 <div className="form-group">
                   <label className="form-label">Gender *</label>
                   <div className="gender-options">
                     {['male', 'female', 'kids'].map(g => (
-                      <button
-                        key={g}
-                        type="button"
+                      <button key={g} type="button"
                         className={`gender-btn ${formData.gender === g ? 'active' : ''}`}
-                        onClick={() => setFormData(prev => ({ ...prev, gender: g, clothingSize: '' }))}
-                      >
+                        onClick={() => setFormData(prev => ({ ...prev, gender: g, clothingSize: '' }))}>
                         {g === 'male' ? '👨 Male' : g === 'female' ? '👩 Female' : '👧 Kids'}
                       </button>
                     ))}
                   </div>
                 </div>
-
                 <div className="form-group">
                   <label className="form-label">Size *</label>
                   <div className="size-options">
                     {(formData.gender ? clothingSizes[formData.gender] : clothingSizes.male).map(size => (
-                      <button
-                        key={size}
-                        type="button"
+                      <button key={size} type="button"
                         className={`size-btn ${formData.clothingSize === size ? 'active' : ''}`}
-                        onClick={() => setFormData(prev => ({ ...prev, clothingSize: size }))}
-                      >
+                        onClick={() => setFormData(prev => ({ ...prev, clothingSize: size }))}>
                         {size}
                       </button>
                     ))}
@@ -286,46 +277,44 @@ const DonateItem = () => {
             {/* Description */}
             <div className="form-group">
               <label className="form-label">Description *</label>
-              <textarea
-                name="description"
-                value={formData.description}
-                onChange={handleChange}
-                className="form-textarea"
-                placeholder="Provide detailed information about the item..."
-                required
-              />
+              <textarea name="description" value={formData.description} onChange={handleChange}
+                className="form-textarea" placeholder="Provide detailed information about the item..." required />
             </div>
 
             {/* Location */}
             <div className="form-section-title">
               <h3>Location Information</h3>
+              <button type="button" className="btn-detect-location" onClick={handleDetectLocation} disabled={locating}>
+                <FiMapPin /> {locating ? 'Detecting...' : 'Use My Location'}
+              </button>
             </div>
+
+            {formData.location.lat && (
+              <div className="location-detected-note">
+                ✅ GPS coordinates saved — this item will appear in nearby searches
+              </div>
+            )}
 
             <div className="form-group">
               <label className="form-label">Address *</label>
-              <input
-                type="text"
-                name="location.address"
-                value={formData.location.address}
-                onChange={handleChange}
-                className="form-control"
-                placeholder="Street address or area"
-                required
-              />
+              <input type="text" name="location.address" value={formData.location.address} onChange={handleChange}
+                className="form-control" placeholder="Street address or area" required />
             </div>
-
             <div className="form-row">
               <div className="form-group">
                 <label className="form-label">City *</label>
-                <input type="text" name="location.city" value={formData.location.city} onChange={handleChange} className="form-control" placeholder="City" required />
+                <input type="text" name="location.city" value={formData.location.city} onChange={handleChange}
+                  className="form-control" placeholder="City" required />
               </div>
               <div className="form-group">
                 <label className="form-label">State</label>
-                <input type="text" name="location.state" value={formData.location.state} onChange={handleChange} className="form-control" placeholder="State" />
+                <input type="text" name="location.state" value={formData.location.state} onChange={handleChange}
+                  className="form-control" placeholder="State" />
               </div>
               <div className="form-group">
                 <label className="form-label">Zip Code</label>
-                <input type="text" name="location.zipCode" value={formData.location.zipCode} onChange={handleChange} className="form-control" placeholder="Zip code" />
+                <input type="text" name="location.zipCode" value={formData.location.zipCode} onChange={handleChange}
+                  className="form-control" placeholder="Zip code" />
               </div>
             </div>
 

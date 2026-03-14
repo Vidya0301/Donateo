@@ -13,7 +13,9 @@ const ChatModal = ({ chatId, onClose, itemName }) => {
   const [pickupForm, setPickupForm] = useState({
     location: '',
     date: '',
-    time: ''
+    timeHour: '09',
+    timeMin: '00',
+    timeAmPm: 'AM'
   });
   const [showPickupForm, setShowPickupForm] = useState(false);
   const [reportMode, setReportMode] = useState(false);
@@ -28,53 +30,37 @@ const ChatModal = ({ chatId, onClose, itemName }) => {
   const fetchChat = useCallback(async (isInitial = false) => {
     try {
       if (isInitial) setLoading(true);
-      
       const response = await chatAPI.getChatById(chatId);
       const newChat = response.data;
-      
-      // Only update if there are new messages
       if (!chat || newChat.messages.length !== previousMessageCount.current) {
         setChat(newChat);
         previousMessageCount.current = newChat.messages.length;
-        
-        // Mark as read only on initial load or new messages
         if (isInitial || newChat.messages.length > previousMessageCount.current) {
           await chatAPI.markAsRead(chatId).catch(() => {});
         }
       }
     } catch (error) {
-      if (isInitial) {
-        toast.error('Failed to load chat');
-      }
+      if (isInitial) toast.error('Failed to load chat');
     } finally {
       if (isInitial) setLoading(false);
     }
   }, [chatId, chat]);
 
-  useEffect(() => {
-    fetchChat(true);
-  }, [chatId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { fetchChat(true); }, [chatId]);
 
   useEffect(() => {
-    // Poll for new messages every 5 seconds
-    const interval = setInterval(() => {
-      fetchChat(false);
-    }, 5000);
-    
+    const interval = setInterval(() => { fetchChat(false); }, 5000);
     return () => clearInterval(interval);
   }, [fetchChat]);
 
   useEffect(() => {
-    // Only scroll if there are new messages
-    if (chat && chat.messages.length > previousMessageCount.current) {
-      scrollToBottom();
-    }
+    if (chat && chat.messages.length > previousMessageCount.current) scrollToBottom();
   }, [chat]);
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!message.trim()) return;
-
     try {
       const response = await chatAPI.sendMessage(chatId, message);
       setChat(response.data);
@@ -99,11 +85,16 @@ const ChatModal = ({ chatId, onClose, itemName }) => {
 
   const handleSubmitPickupDetails = async (e) => {
     e.preventDefault();
+    const timeString = `${pickupForm.timeHour}:${pickupForm.timeMin} ${pickupForm.timeAmPm}`;
     try {
-      const response = await chatAPI.updatePickupDetails(chatId, pickupForm);
+      const response = await chatAPI.updatePickupDetails(chatId, {
+        location: pickupForm.location,
+        date: pickupForm.date,
+        time: timeString
+      });
       setChat(response.data);
       setShowPickupForm(false);
-      setPickupForm({ location: '', date: '', time: '' });
+      setPickupForm({ location: '', date: '', timeHour: '09', timeMin: '00', timeAmPm: 'AM' });
       previousMessageCount.current = response.data.messages.length;
       toast.success('Pickup details sent!');
       scrollToBottom();
@@ -126,11 +117,7 @@ const ChatModal = ({ chatId, onClose, itemName }) => {
   };
 
   const handleReport = async () => {
-    if (!reportReason.trim()) {
-      toast.error('Please provide a reason for reporting');
-      return;
-    }
-
+    if (!reportReason.trim()) { toast.error('Please provide a reason for reporting'); return; }
     try {
       await chatAPI.reportChat(chatId, reportReason);
       setReportMode(false);
@@ -149,6 +136,9 @@ const ChatModal = ({ chatId, onClose, itemName }) => {
   const isDonor = chat?.donor?._id === user?._id;
   const isChatActive = chat?.status === 'active';
 
+  const hours   = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
+  const minutes = ['00', '15', '30', '45'];
+
   if (loading) {
     return (
       <div className="chat-modal-overlay">
@@ -160,28 +150,23 @@ const ChatModal = ({ chatId, onClose, itemName }) => {
   return (
     <div className="chat-modal-overlay" onClick={onClose}>
       <div className="chat-modal" onClick={(e) => e.stopPropagation()}>
+
         {/* Header */}
         <div className="chat-header">
           <div>
             <h3>💬 {itemName}</h3>
-            <p className="chat-subtitle">
-              {chat?.donor?.name} ↔ {chat?.receiver?.name}
-            </p>
+            <p className="chat-subtitle">{chat?.donor?.name} ↔ {chat?.receiver?.name}</p>
           </div>
           <div className="chat-header-actions">
             {isChatActive && (
               <>
                 {isDonor && (
-                  <button 
-                    onClick={handleEndChat} 
-                    className="btn-header btn-end"
-                    title="End this chat"
-                  >
+                  <button onClick={handleEndChat} className="btn-header btn-end" title="End this chat">
                     ✓ End Chat
                   </button>
                 )}
-                <button 
-                  onClick={() => setReportMode(!reportMode)} 
+                <button
+                  onClick={() => setReportMode(!reportMode)}
                   className={`btn-header ${reportMode ? 'btn-report-active' : 'btn-report'}`}
                   title="Report abuse"
                 >
@@ -189,17 +174,13 @@ const ChatModal = ({ chatId, onClose, itemName }) => {
                 </button>
               </>
             )}
-            <button onClick={onClose} className="close-btn" title="Close chat">
-              <FiX />
-            </button>
+            <button onClick={onClose} className="close-btn" title="Close chat"><FiX /></button>
           </div>
         </div>
 
         {/* Safety Banner */}
         <div className="safety-banner">
-          <p>
-            🛡️ <strong>Safe Chat:</strong> Free donations only • No contact details • No payment • Be respectful
-          </p>
+          <p>🛡️ <strong>Safe Chat:</strong> Free donations only • No contact details • No payment • Be respectful</p>
         </div>
 
         {/* Report Form */}
@@ -214,56 +195,39 @@ const ChatModal = ({ chatId, onClose, itemName }) => {
               rows="3"
             />
             <div className="report-actions">
-              <button onClick={() => setReportMode(false)} className="btn btn-outline btn-sm">
-                Cancel
-              </button>
-              <button onClick={handleReport} className="btn btn-primary btn-sm">
-                Submit Report
-              </button>
+              <button onClick={() => setReportMode(false)} className="btn btn-outline btn-sm">Cancel</button>
+              <button onClick={handleReport} className="btn btn-primary btn-sm">Submit Report</button>
             </div>
           </div>
         )}
 
         {/* Messages */}
         <div className="chat-messages">
-          {chat?.messages.map((msg, index) => {
-            const isDonorMessage = msg.sender?._id === chat.donor._id || msg.sender === chat.donor._id;
-            const isReceiverMessage = msg.sender?._id === chat.receiver._id || msg.sender === chat.receiver._id;
-            
-            return (
-              <div
-                key={`${msg.timestamp}-${index}`}
-                className={`message ${
-                  msg.isSystem
-                    ? `system-message ${isOwnMessage(msg) ? 'own-message' : ''}`
-                    : msg.isBot
-                    ? 'bot-message'
-                    : isOwnMessage(msg)
-                    ? 'own-message'
-                    : 'other-message'
-                }`}
-              >
-                <div className="message-header">
+          {chat?.messages.map((msg, index) => (
+            <div
+              key={`${msg.timestamp}-${index}`}
+              className={`message ${
+                msg.isSystem
+                  ? `system-message ${isOwnMessage(msg) ? 'own-message' : ''}`
+                  : msg.isBot ? 'bot-message'
+                  : isOwnMessage(msg) ? 'own-message'
+                  : 'other-message'
+              }`}
+            >
+              <div className="message-header">
                 <strong>
-                  {msg.isBot && !msg.isSystem
-                    ? '🤖 Assistant'
-                    : msg.isSystem
-                    ? (isOwnMessage(msg) ? 'You' : msg.sender?.name || 'User')
-                    : isOwnMessage(msg)
-                    ? 'You'
+                  {msg.isBot && !msg.isSystem ? '🤖 Assistant'
+                    : msg.isSystem ? (isOwnMessage(msg) ? 'You' : msg.sender?.name || 'User')
+                    : isOwnMessage(msg) ? 'You'
                     : msg.sender?.name || 'User'}
                 </strong>
-                  <span className="message-time">
-                    {new Date(msg.timestamp).toLocaleTimeString([], { 
-                      hour: '2-digit', 
-                      minute: '2-digit' 
-                    })}
-                  </span>
-                </div>
-                <p className="message-content">{msg.content}</p>
+                <span className="message-time">
+                  {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
               </div>
-            );
-          })}
+              <p className="message-content">{msg.content}</p>
+            </div>
+          ))}
           <div ref={messagesEndRef} />
         </div>
 
@@ -300,55 +264,54 @@ const ChatModal = ({ chatId, onClose, itemName }) => {
               </div>
               <div className="form-group">
                 <label><FiClock /> Time</label>
-                <input
-                  type="time"
-                  value={pickupForm.time}
-                  onChange={(e) => setPickupForm({ ...pickupForm, time: e.target.value })}
-                  required
-                  className="form-control"
-                />
+                <div className="time-picker-row">
+                  <select
+                    value={pickupForm.timeHour}
+                    onChange={e => setPickupForm({ ...pickupForm, timeHour: e.target.value })}
+                    className="time-select"
+                  >
+                    {hours.map(h => <option key={h} value={h}>{h}</option>)}
+                  </select>
+                  <span className="time-sep">:</span>
+                  <select
+                    value={pickupForm.timeMin}
+                    onChange={e => setPickupForm({ ...pickupForm, timeMin: e.target.value })}
+                    className="time-select"
+                  >
+                    {minutes.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                  <select
+                    value={pickupForm.timeAmPm}
+                    onChange={e => setPickupForm({ ...pickupForm, timeAmPm: e.target.value })}
+                    className="time-select time-ampm"
+                  >
+                    <option value="AM">AM</option>
+                    <option value="PM">PM</option>
+                  </select>
+                </div>
               </div>
             </div>
             <div className="form-actions">
-              <button type="button" onClick={() => setShowPickupForm(false)} className="btn btn-outline">
-                Cancel
-              </button>
-              <button type="submit" className="btn btn-primary">
-                Send Details
-              </button>
+              <button type="button" onClick={() => setShowPickupForm(false)} className="btn btn-outline">Cancel</button>
+              <button type="submit" className="btn btn-primary">Send Details</button>
             </div>
           </form>
         ) : (
           <>
-            {/* Quick Replies */}
             <div className="quick-replies">
-              <button onClick={() => handleQuickReply('ready')} className="quick-reply-btn" type="button">
-                ✅ Ready
-              </button>
-              <button onClick={() => handleQuickReply('confirm_pickup')} className="quick-reply-btn" type="button">
-                👍 Confirm
-              </button>
+              <button onClick={() => handleQuickReply('ready')} className="quick-reply-btn" type="button">✅ Ready</button>
+              <button onClick={() => handleQuickReply('confirm_pickup')} className="quick-reply-btn" type="button">👍 Confirm</button>
               {!isDonor && (
-                <button onClick={() => handleQuickReply('on_my_way')} className="quick-reply-btn" type="button">
-                  🚗 On Way
-                </button>
+                <button onClick={() => handleQuickReply('on_my_way')} className="quick-reply-btn" type="button">🚗 On Way</button>
               )}
-              <button onClick={() => handleQuickReply('thank_you')} className="quick-reply-btn" type="button">
-                🙏 Thanks
-              </button>
-              <button onClick={() => handleQuickReply('reschedule')} className="quick-reply-btn" type="button">
-                🔄 Reschedule
-              </button>
+              <button onClick={() => handleQuickReply('thank_you')} className="quick-reply-btn" type="button">🙏 Thanks</button>
+              <button onClick={() => handleQuickReply('reschedule')} className="quick-reply-btn" type="button">🔄 Reschedule</button>
             </div>
-
-            {/* Pickup Details Button */}
             <div className="chat-actions">
               <button onClick={() => setShowPickupForm(true)} className="btn btn-secondary btn-sm" type="button">
                 📍 Set Pickup Details
               </button>
             </div>
-
-            {/* Message Input */}
             <form onSubmit={handleSendMessage} className="chat-input-form">
               <input
                 type="text"
@@ -358,9 +321,7 @@ const ChatModal = ({ chatId, onClose, itemName }) => {
                 className="chat-input"
                 maxLength="500"
               />
-              <button type="submit" className="send-btn" disabled={!message.trim()}>
-                <FiSend />
-              </button>
+              <button type="submit" className="send-btn" disabled={!message.trim()}><FiSend /></button>
             </form>
             <div className="char-count">{message.length}/500</div>
           </>

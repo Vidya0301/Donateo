@@ -26,57 +26,34 @@ const userSchema = new mongoose.Schema({
     enum: ['donor', 'receiver', 'admin'],
     default: 'donor'
   },
-  phone: {
-    type: String,
-    trim: true
-  },
-  address: {
-    street: String,
-    city: String,
-    state: String,
-    zipCode: String
-  },
-  isActive: {
-    type: Boolean,
-    default: true
-  },
+  phone:   { type: String, trim: true },
+  address: { street: String, city: String, state: String, zipCode: String },
+  isActive:   { type: Boolean, default: true },
+  isVerified: { type: Boolean, default: true },
 
-  // ── EMAIL VERIFICATION ──────────────────────────────────────
-  // default: true  → all EXISTING users in DB are automatically
-  //                  treated as verified. No migration needed.
-  // New registrations explicitly set isVerified: false in
-  // authController.register() until OTP is confirmed.
-  // ────────────────────────────────────────────────────────────
-  isVerified: {
-    type: Boolean,
-    default: true
+  itemsDonated:  [{ type: mongoose.Schema.Types.ObjectId, ref: 'Item' }],
+  itemsReceived: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Item' }],
+  wishlist:      [{ type: mongoose.Schema.Types.ObjectId, ref: 'Item' }],
+  notificationPreferences: {
+    itemApproved:     { inApp: { type: Boolean, default: true }, email: { type: Boolean, default: true } },
+    requestReceived:  { inApp: { type: Boolean, default: true }, email: { type: Boolean, default: true } },
+    requestApproved:  { inApp: { type: Boolean, default: true }, email: { type: Boolean, default: true } },
+    pickupScheduled:  { inApp: { type: Boolean, default: true }, email: { type: Boolean, default: true } },
+    itemHandedOver:   { inApp: { type: Boolean, default: true }, email: { type: Boolean, default: true } },
+    itemReceived:     { inApp: { type: Boolean, default: true }, email: { type: Boolean, default: true } },
+    pickupReminder:   { inApp: { type: Boolean, default: true }, email: { type: Boolean, default: true } }
   },
+}, { timestamps: true });
 
-  itemsDonated: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Item'
-  }],
-  itemsReceived: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Item'
-  }]
-}, {
-  timestamps: true
-});
-
-// Hash password before saving
 userSchema.pre('save', async function(next) {
   if (!this.isModified('password')) return next();
   try {
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
     next();
-  } catch (error) {
-    next(error);
-  }
+  } catch (error) { next(error); }
 });
 
-// Method to compare passwords
 userSchema.methods.comparePassword = async function(candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };

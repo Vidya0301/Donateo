@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { FiHeart, FiUser, FiLogOut, FiMenu, FiX, FiShoppingBag, FiSettings } from 'react-icons/fi';
+import { FiHeart, FiUser, FiLogOut, FiMenu, FiX, FiShoppingBag, FiSettings, FiMail } from 'react-icons/fi';
 import NotificationBell from './Notificationbell';
 import './Header.css';
 
@@ -25,17 +25,16 @@ const Header = () => {
             <span className="logo-text">Donateo</span>
           </Link>
 
-          <button
-            className="menu-toggle"
-            onClick={() => setMenuOpen(!menuOpen)}
-            aria-label="Toggle menu"
-          >
+          <button className="menu-toggle" onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle menu">
             {menuOpen ? <FiX /> : <FiMenu />}
           </button>
 
           <nav className={`nav ${menuOpen ? 'nav-open' : ''}`}>
-            <Link to="/" onClick={() => setMenuOpen(false)}>Home</Link>
+            <Link to="/"       onClick={() => setMenuOpen(false)}>Home</Link>
             <Link to="/browse" onClick={() => setMenuOpen(false)}>Browse Items</Link>
+            <Link to="/contact" onClick={() => setMenuOpen(false)}>
+              <FiMail /> Contact
+            </Link>
 
             {isAuthenticated ? (
               <>
@@ -48,12 +47,7 @@ const Header = () => {
                   </Link>
                 )}
                 <div className="user-menu">
-                  <Link
-                    to="/profile"
-                    className="user-name"
-                    onClick={() => setMenuOpen(false)}
-                    title="Edit Profile"
-                  >
+                  <Link to="/profile" className="user-name" onClick={() => setMenuOpen(false)} title="Edit Profile">
                     <FiUser /> {user?.name}
                   </Link>
                   <NotificationBell />
@@ -64,12 +58,8 @@ const Header = () => {
               </>
             ) : (
               <div className="auth-buttons">
-                <Link to="/login" className="btn btn-outline" onClick={() => setMenuOpen(false)}>
-                  Login
-                </Link>
-                <Link to="/register" className="btn btn-primary" onClick={() => setMenuOpen(false)}>
-                  Join Us
-                </Link>
+                <Link to="/login"    className="btn btn-outline" onClick={() => setMenuOpen(false)}>Login</Link>
+                <Link to="/register" className="btn btn-primary" onClick={() => setMenuOpen(false)}>Join Us</Link>
               </div>
             )}
           </nav>

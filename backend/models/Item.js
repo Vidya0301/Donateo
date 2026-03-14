@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const itemSchema = new mongoose.Schema({
   itemName:    { type: String, required: true, trim: true },
-  category:    { type: String, required: true, enum: ['clothes', 'books', 'bags', 'food', 'household', 'other'] },
+  category:    { type: String, required: true },
   description: { type: String, required: true },
   image:       { type: String, required: true },
   condition:   { type: String, enum: ['new', 'like-new', 'good', 'fair'], default: 'good' },
@@ -19,7 +19,9 @@ const itemSchema = new mongoose.Schema({
     address: { type: String, required: true },
     city:    { type: String, required: true },
     state:   { type: String },
-    zipCode: { type: String }
+    zipCode: { type: String },
+    lat:     { type: Number },   // ← for location-based browsing
+    lng:     { type: Number }    // ← for location-based browsing
   },
 
   donor:    { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },

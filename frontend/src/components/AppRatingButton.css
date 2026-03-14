@@ -1,0 +1,259 @@
+/* ── Floating Action Button ── */
+.app-rate-fab {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: linear-gradient(135deg, var(--forest-green), #1a5a33);
+  color: white;
+  border: none;
+  border-radius: 50px;
+  padding: 0.65rem 1.1rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-family: var(--font-body);
+  cursor: pointer;
+  box-shadow: 0 4px 18px rgba(46, 139, 87, 0.45);
+  transition: all 0.25s ease;
+}
+
+.app-rate-fab:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(46, 139, 87, 0.55);
+}
+
+.app-rate-fab--rated {
+  background: linear-gradient(135deg, #f4a500, #c88000);
+  box-shadow: 0 4px 18px rgba(244, 165, 0, 0.4);
+}
+
+.app-rate-fab--rated:hover {
+  box-shadow: 0 8px 24px rgba(244, 165, 0, 0.55);
+}
+
+.fab-star-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.fab-label {
+  white-space: nowrap;
+}
+
+/* ── Overlay ── */
+.app-rate-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+  padding: 1rem;
+  backdrop-filter: blur(4px);
+}
+
+/* ── Modal ── */
+.app-rate-modal {
+  background: white;
+  border-radius: 24px;
+  padding: 2.5rem 2rem 2rem;
+  width: 100%;
+  max-width: 420px;
+  position: relative;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.18);
+  animation: appRateIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes appRateIn {
+  from { opacity: 0; transform: scale(0.85) translateY(20px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.app-rate-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: #f2f2f2;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  color: #666;
+  transition: background 0.2s;
+}
+.app-rate-close:hover { background: #e0e0e0; }
+
+/* ── Header ── */
+.app-rate-header {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.app-rate-logo {
+  width: 64px;
+  height: 64px;
+  background: linear-gradient(135deg, var(--forest-green), #1a5a33);
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1rem;
+  box-shadow: 0 4px 16px rgba(46,139,87,0.3);
+}
+
+.app-rate-heart {
+  color: white;
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.app-rate-header h2 {
+  font-size: 1.5rem;
+  color: var(--forest-green);
+  margin-bottom: 0.3rem;
+}
+
+.app-rate-header p {
+  color: #888;
+  font-size: 0.92rem;
+}
+
+/* ── Stars ── */
+.app-rate-stars {
+  display: flex;
+  justify-content: center;
+  gap: 0.6rem;
+  margin-bottom: 0.5rem;
+}
+
+.app-star-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.2rem;
+  color: #ddd;
+  transition: color 0.15s, transform 0.15s;
+  display: flex;
+}
+
+.app-star-btn svg {
+  width: 2.4rem;
+  height: 2.4rem;
+  stroke: currentColor;
+  transition: fill 0.15s, stroke 0.15s;
+}
+
+.app-star-btn.app-star-filled {
+  color: #f4a500;
+}
+
+.app-star-btn.app-star-filled svg {
+  fill: #f4a500;
+  stroke: #f4a500;
+}
+
+.app-star-btn:hover { transform: scale(1.2); }
+
+.app-star-label {
+  text-align: center;
+  font-weight: 700;
+  color: #f4a500;
+  font-size: 0.95rem;
+  min-height: 1.4rem;
+  margin-bottom: 1rem;
+}
+
+/* ── Review textarea ── */
+.app-rate-review-group {
+  margin-bottom: 1.5rem;
+  position: relative;
+}
+
+.app-rate-review-group label {
+  display: block;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #444;
+  margin-bottom: 0.4rem;
+}
+
+.app-rate-optional {
+  font-weight: 400;
+  color: #bbb;
+  font-size: 0.82rem;
+}
+
+.app-rate-textarea {
+  width: 100%;
+  border: 1.5px solid #e8e8e8;
+  border-radius: 12px;
+  padding: 0.75rem;
+  font-size: 0.9rem;
+  font-family: var(--font-body);
+  resize: vertical;
+  box-sizing: border-box;
+  color: #333;
+  transition: border-color 0.2s;
+}
+
+.app-rate-textarea:focus {
+  outline: none;
+  border-color: var(--forest-green);
+  box-shadow: 0 0 0 3px rgba(46,139,87,0.1);
+}
+
+.app-rate-charcount {
+  position: absolute;
+  bottom: 0.4rem;
+  right: 0.6rem;
+  font-size: 0.72rem;
+  color: #ccc;
+  pointer-events: none;
+}
+
+/* ── Actions ── */
+.app-rate-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-bottom: 0.75rem;
+}
+
+.app-rate-existing-note {
+  text-align: center;
+  font-size: 0.78rem;
+  color: #aaa;
+  font-style: italic;
+}
+
+/* ── Responsive ── */
+@media (max-width: 480px) {
+  .app-rate-fab {
+    bottom: 1.25rem;
+    right: 1.25rem;
+    padding: 0.6rem 0.9rem;
+    font-size: 0.8rem;
+  }
+
+  .app-rate-modal {
+    padding: 2rem 1.25rem 1.5rem;
+  }
+
+  .app-rate-actions {
+    flex-direction: column-reverse;
+  }
+
+  .app-rate-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
