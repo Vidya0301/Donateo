@@ -432,6 +432,8 @@ const Dashboard = () => {
                           <span className={`extra-tag ${CONDITION_STYLES[item.condition].cls}`}>{CONDITION_STYLES[item.condition].label}</span>
                         </div>
                       )}
+                      <p className="donor-info"><FiUser /> Donated by: <strong>{item.donor?.name}</strong></p>
+                      {(rpickup?.location || item.pickupScheduled) && (
                         <div className="pickup-details-card">
                           <p className="pickup-title">📦 Pickup Details</p>
                           <p><FiMapPin /> <strong>Location:</strong> {rpickup?.location || item.pickupLocation}</p>
