@@ -155,6 +155,22 @@ const emailTemplates = {
 
 
 
+
+  item_rejected: (donorName, itemName, reason) => ({
+    subject: `Your item "${itemName}" was not approved`,
+    text: `Hi ${donorName}, unfortunately your item "${itemName}" was not approved. Reason: ${reason}. You can repost with corrections.`,
+    html: wrap(
+      '❌ Item Not Approved',
+      `<p style="color:#555;">Hi <strong>${donorName}</strong>,</p>
+       <p style="color:#555;">Unfortunately, your item <strong style="color:#c62828;">"${itemName}"</strong> was not approved by our admin team.</p>
+       <div style="background:#fff3f3;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #e53935;">
+         <p style="margin:0;color:#c62828;"><strong>Reason:</strong> ${reason}</p>
+       </div>
+       <p style="color:#555;">You're welcome to make corrections and repost the item. If you have questions, please contact support.</p>`,
+      'Post Again →', `${URL}/donate`
+    )
+  }),
+
   request_denied: (itemName, donorName) => ({
     subject: `Your request for "${itemName}" was not selected`,
     text: `Hi, unfortunately your request for "${itemName}" was not selected by the donor. Don't give up — browse more items at ${URL}/browse`,
@@ -186,6 +202,22 @@ const emailTemplates = {
     )
   }),
 
+
+
+  item_rejected: (donorName, itemName, reason) => ({
+    subject: `Your item "${itemName}" was not approved`,
+    text: `Hi ${donorName}, unfortunately your item "${itemName}" was not approved. Reason: ${reason}. You can repost with corrections.`,
+    html: wrap(
+      '❌ Item Not Approved',
+      `<p style="color:#555;">Hi <strong>${donorName}</strong>,</p>
+       <p style="color:#555;">Unfortunately, your item <strong style="color:#c62828;">"${itemName}"</strong> was not approved by our admin team.</p>
+       <div style="background:#fff3f3;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #e53935;">
+         <p style="margin:0;color:#c62828;"><strong>Reason:</strong> ${reason}</p>
+       </div>
+       <p style="color:#555;">You're welcome to make corrections and repost the item. If you have questions, please contact support.</p>`,
+      'Post Again →', `${URL}/donate`
+    )
+  }),
 
   request_denied: (itemName, donorName) => ({
     subject: `❌ Your request for "${itemName}" was not selected`,

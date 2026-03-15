@@ -49,7 +49,12 @@ const Browse = () => {
   const [shareItem, setShareItem]       = useState(null); // item to share // { lat, lng }
   const [locating, setLocating]       = useState(false);
   const [radius, setRadius]           = useState(null);  // null = no limit
-  const [searchInput, setSearchInput] = useState('');
+  const [searchInput, setSearchInput]   = useState('');
+  const [suggestions, setSuggestions]     = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [page, setPage]                       = useState(1);
+  const [totalPages, setTotalPages]           = useState(1);
+  const [totalItems, setTotalItems]           = useState(0);
   const searchTimer = useRef(null);
 
   const [filters, setFilters] = useState({
@@ -60,8 +65,30 @@ const Browse = () => {
     setSearchInput(val);
     clearTimeout(searchTimer.current);
     searchTimer.current = setTimeout(() => {
-      setFilters(f => ({ ...f, search: val }));
+      setFilters(f => ({ ...f, search: val })); setPage(1);
     }, 400);
+    // Generate suggestions from loaded items
+    if (val.trim().length > 1) {
+      const q = val.toLowerCase();
+      const matches = [...new Set(
+        items
+          .filter(i => i.itemName.toLowerCase().includes(q))
+          .map(i => i.itemName)
+          .slice(0, 6)
+      )];
+      setSuggestions(matches);
+      setShowSuggestions(matches.length > 0);
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  const handleSelectSuggestion = (val) => {
+    setSearchInput(val);
+    setFilters(f => ({ ...f, search: val })); setPage(1);
+    setSuggestions([]);
+    setShowSuggestions(false);
   };
 
   const handleUseMyLocation = () => {
@@ -112,15 +139,26 @@ const Browse = () => {
         ...(filters.city.trim()          && { city:      filters.city.trim() }),
         ...(filters.search.trim()        && { search:    filters.search.trim() }),
         ...(filters.sortBy !== 'newest'  && { sortBy:    filters.sortBy }),
+        page,
+        limit: 9,
       };
       const response = await itemsAPI.getItems(params);
-      setItems(response.data);
+      const data = response.data;
+      if (data && data.items) {
+        setItems(data.items);
+        setTotalPages(data.totalPages || 1);
+        setTotalItems(data.total || data.items.length);
+      } else {
+        setItems(Array.isArray(data) ? data : []);
+        setTotalPages(1);
+        setTotalItems(Array.isArray(data) ? data.length : 0);
+      }
     } catch {
       toast.error('Failed to load items');
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, page]);
 
   useEffect(() => { fetchItems(); }, [fetchItems]);
 
@@ -142,7 +180,7 @@ const Browse = () => {
   };
 
   const clearAll = () => {
-    setFilters({ search: '', category: 'all', city: '', condition: 'all', sortBy: 'newest' });
+    setFilters({ search: '', category: 'all', city: '', condition: 'all', sortBy: 'newest' }); setPage(1);
     setSearchInput('');
   };
 
@@ -163,6 +201,7 @@ const Browse = () => {
   const getStatusBadge = (status) => ({
     available: <span className="badge badge-success">Available</span>,
     requested: <span className="badge badge-warning">Requested</span>,
+    expired:   <span className="badge badge-expired">⏱ Expired</span>,
     donated:   <span className="badge badge-secondary">Donated</span>,
   }[status] || null);
 
@@ -239,19 +278,30 @@ const Browse = () => {
 
         {/* Search Bar */}
         <div className="browse-search-bar">
-          <div className="search-input-wrap">
+          <div className="search-input-wrap" style={{position:'relative'}}>
             <FiSearch className="search-icon" />
             <input
               type="text"
               value={searchInput}
               onChange={e => handleSearchChange(e.target.value)}
+              onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
               placeholder="Search by item name or description..."
               className="search-input"
             />
             {searchInput && (
-              <button className="search-clear" onClick={() => { setSearchInput(''); setFilters(f => ({ ...f, search: '' })); }}>
+              <button className="search-clear" onClick={() => { setSearchInput(''); setFilters(f => ({ ...f, search: '' })); setSuggestions([]); setShowSuggestions(false); }}>
                 <FiX />
               </button>
+            )}
+            {showSuggestions && suggestions.length > 0 && (
+              <div className="search-suggestions">
+                {suggestions.map((s, i) => (
+                  <button key={i} className="suggestion-item" onMouseDown={() => handleSelectSuggestion(s)}>
+                    <FiSearch style={{fontSize:'0.8rem', opacity:0.5}} /> {s}
+                  </button>
+                ))}
+              </div>
             )}
           </div>
           <button
@@ -326,7 +376,10 @@ const Browse = () => {
           <div className="result-count">
             {itemsWithDistance.length === 0
               ? 'No items match your filters'
-              : `Showing ${itemsWithDistance.length} item${itemsWithDistance.length !== 1 ? 's' : ''}${hasActiveFilters ? ' with current filters' : ''}`}
+              : totalPages > 1
+                ? `Showing ${(page-1)*9+1}–${Math.min(page*9, totalItems)} of ${totalItems} item${totalItems !== 1 ? 's' : ''}${hasActiveFilters ? ' with current filters' : ''}`
+                : `Showing ${itemsWithDistance.length} item${itemsWithDistance.length !== 1 ? 's' : ''}${hasActiveFilters ? ' with current filters' : ''}`
+            }
           </div>
         )}
 
@@ -434,6 +487,32 @@ const Browse = () => {
             })}
           </div>
         )}
+
+      {/* ── Pagination ── */}
+      {totalPages > 1 && (
+        <div className="pagination-wrap">
+          <button className="page-btn" onClick={() => setPage(p => Math.max(1, p-1))} disabled={page === 1}>
+            ← Prev
+          </button>
+          <div className="page-numbers">
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+              .reduce((acc, p, i, arr) => {
+                if (i > 0 && p - arr[i-1] > 1) acc.push('...');
+                acc.push(p);
+                return acc;
+              }, [])
+              .map((p, i) => p === '...'
+                ? <span key={`dots-${i}`} className="page-dots">...</span>
+                : <button key={p} className={`page-btn ${page === p ? 'page-btn--active' : ''}`} onClick={() => setPage(p)}>{p}</button>
+              )
+            }
+          </div>
+          <button className="page-btn" onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page === totalPages}>
+            Next →
+          </button>
+        </div>
+      )}
 
       {/* ── Share Modal ── */}
       {shareItem && (

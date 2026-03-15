@@ -86,6 +86,9 @@ const AdminPanel = () => {
   const [supportUnread, setSupportUnread]     = useState(0);
   const [allRatings, setAllRatings]           = useState([]);
   const [expandedRating, setExpandedRating]   = useState(null);
+  const [rejectModal, setRejectModal]         = useState(null); // itemId
+  const [rejectReason, setRejectReason]       = useState('');
+  const [settings, setSettings]               = useState({ itemExpiryDays: 30 });
   const [appReviews, setAppReviews]           = useState({ reviews: [], total: 0, average: null, distribution: {} });
   const [replyText, setReplyText]             = useState({});
   const [expandedMsg, setExpandedMsg]         = useState(null);
@@ -113,6 +116,7 @@ const AdminPanel = () => {
       if (activeTab === 'support') promises.push(supportAPI.getAll());
       if (activeTab === 'ratings') promises.push(ratingAPI.getAll());
       if (activeTab === 'appreviews') promises.push(appReviewAPI.getAll());
+      if (activeTab === 'settings') { adminAPI.getSettings().then(r => setSettings(r.data)).catch(() => {}); }
       if (activeTab === 'analytics' || activeTab === 'leaderboard' || activeTab === 'export' || activeTab === 'monthly')
         promises.push(adminAPI.getItems({})); // all items for analytics
 
@@ -170,6 +174,18 @@ const AdminPanel = () => {
     try { await adminAPI.approveItem(itemId); toast.success('Item approved!'); fetchData(); }
     catch { toast.error('Failed to approve item'); }
   };
+
+  const handleRejectItem = async () => {
+    if (!rejectReason.trim()) { toast.error('Please provide a rejection reason'); return; }
+    try {
+      await adminAPI.rejectItem(rejectModal, rejectReason);
+      toast.success('Item rejected and donor notified');
+      setRejectModal(null);
+      setRejectReason('');
+      fetchData();
+    } catch { toast.error('Failed to reject item'); }
+  };
+
   const handleRemoveItem = async (itemId) => {
     if (!window.confirm('Remove this item?')) return;
     try { await adminAPI.removeItem(itemId); toast.success('Item removed'); fetchData(); }
@@ -236,22 +252,6 @@ const AdminPanel = () => {
   };
 
   // ── chat helpers ───────────────────────────────────────────
-  const getSenderLabel = (msg, chat) => {
-    if (msg.isBot) return '🤖 Donateo Assistant';
-    if (!msg.sender) return 'Unknown';
-    const sid = msg.sender._id || msg.sender;
-    if (sid === (chat.donor._id || chat.donor)) return `Donor (${chat.donor.name})`;
-    if (sid === (chat.receiver._id || chat.receiver)) return `Receiver (${chat.receiver.name})`;
-    return msg.sender.name || 'User';
-  };
-  const getSenderClass = (msg, chat) => {
-    if (msg.isBot) return 'admin-msg-bot';
-    const sid = msg.sender?._id || msg.sender;
-    if (sid === (chat.donor._id || chat.donor)) return 'admin-msg-donor';
-    if (sid === (chat.receiver._id || chat.receiver)) return 'admin-msg-receiver';
-    return 'admin-msg-user';
-  };
-
   const openChat = (chat) => { setSelectedChat(chat._id); setSelectedItemName(chat.item.itemName); setShowChat(true); };
   const selectedChatData = chats.find(c => c._id === selectedChat);
   const reportedChats = chats.filter(c => c.reported);
@@ -392,6 +392,9 @@ const AdminPanel = () => {
           </button>
           <button className={`tab ${activeTab === 'appreviews' ? 'active' : ''}`} onClick={() => setActiveTab('appreviews')}>
             <FiStar /> App Reviews
+          </button>
+          <button className={`tab ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>
+            ⚙️ Settings
           </button>
         </div>
 
@@ -965,6 +968,44 @@ const AdminPanel = () => {
             )}
           </div>
 
+        ) : activeTab === 'settings' ? (
+          <div className="settings-admin-section">
+            <h3 className="support-inbox-title">⚙️ App Settings</h3>
+            <div className="settings-card card">
+              <div className="settings-group">
+                <div className="settings-group-header">
+                  <span className="settings-group-icon">⏱️</span>
+                  <div>
+                    <h4>Item Auto-Expiry</h4>
+                    <p>Items will automatically expire after this many days if not donated. Set to 0 to disable.</p>
+                  </div>
+                </div>
+                <div className="settings-control">
+                  <label>Expiry Period (days)</label>
+                  <div className="settings-input-row">
+                    <input
+                      type="number" min="0" max="365"
+                      value={settings.itemExpiryDays}
+                      onChange={e => setSettings(prev => ({ ...prev, itemExpiryDays: e.target.value }))}
+                      className="form-control settings-input"
+                    />
+                    <button className="btn btn-primary" onClick={async () => {
+                      try {
+                        await adminAPI.updateSettings({ itemExpiryDays: settings.itemExpiryDays });
+                        toast.success(`✅ Items will expire after ${settings.itemExpiryDays} days`);
+                      } catch { toast.error('Failed to save'); }
+                    }}>Save</button>
+                  </div>
+                  <p className="settings-hint">
+                    {settings.itemExpiryDays === 0 || settings.itemExpiryDays === '0'
+                      ? '⚠️ Auto-expiry is disabled'
+                      : `Items expire ${settings.itemExpiryDays} days after approval. Donor gets notified.`}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
         ) : activeTab === 'support' ? (
           <div className="support-inbox">
             <h3 className="support-inbox-title">
@@ -1069,50 +1110,125 @@ const AdminPanel = () => {
                   </div>
                 </div>
                 <div className="item-actions">
-                  {!item.isApproved && <button onClick={() => handleApproveItem(item._id)} className="btn btn-primary"><FiCheckCircle /> Approve</button>}
-                  <button onClick={() => handleRemoveItem(item._id)} className="btn btn-outline"><FiXCircle /> Remove</button>
+                  {!item.isApproved && (
+                    <button onClick={() => handleApproveItem(item._id)} className="btn btn-primary btn-sm"><FiCheckCircle /> Approve</button>
+                  )}
+                  {!item.isApproved && (
+                    <button onClick={() => { setRejectModal(item._id); setRejectReason(''); }} className="btn btn-danger btn-sm"><FiXCircle /> Reject</button>
+                  )}
+                  <button onClick={() => handleRemoveItem(item._id)} className="btn btn-outline btn-sm"><FiXCircle /> Remove</button>
                 </div>
               </div>
             ))}
           </div>
         )}
 
-        {/* Admin Chat Viewer Modal */}
-        {showChat && selectedChat && selectedChatData && (
-          <div className="chat-modal-overlay" onClick={() => setShowChat(false)}>
-            <div className="admin-chat-modal card" onClick={e => e.stopPropagation()}>
-              <div className="admin-chat-modal-header">
-                <div>
-                  <h3>Chat: {selectedItemName}</h3>
-                  <p className="admin-chat-subtitle">
-                    👤 Donor: <strong>{selectedChatData.donor.name}</strong> &nbsp;|&nbsp;
-                    👤 Receiver: <strong>{selectedChatData.receiver.name}</strong>
-                  </p>
-                  {selectedChatData.reported && (
-                    <div className="admin-report-banner">
-                      <FiAlertTriangle />
-                      <span>⚠️ Reported — Reason: <strong>{selectedChatData.reportReason || 'Not specified'}</strong></span>
-                    </div>
-                  )}
-                </div>
-                <button className="btn btn-outline btn-sm" onClick={() => setShowChat(false)}>Close</button>
-              </div>
-              <div className="admin-chat-messages">
-                {selectedChatData.messages?.length === 0 ? <p className="no-data">No messages yet.</p> : (
-                  selectedChatData.messages?.map((msg, idx) => (
-                    <div key={idx} className={`admin-chat-message ${getSenderClass(msg, selectedChatData)}`}>
-                      <div className="admin-msg-header">
-                        <span className="admin-msg-sender">{getSenderLabel(msg, selectedChatData)}</span>
-                        <span className="admin-msg-time">{new Date(msg.timestamp || msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                      </div>
-                      <p className="admin-msg-content">{msg.content || msg.text}</p>
-                    </div>
-                  ))
-                )}
+        {/* Reject Modal */}
+      {rejectModal && (
+        <div className="chat-modal-overlay" onClick={() => setRejectModal(null)}>
+          <div className="admin-chat-modal card" style={{maxWidth:'420px'}} onClick={e => e.stopPropagation()}>
+            <div className="admin-chat-modal-header">
+              <div><h3 style={{color:'#dc3545'}}>❌ Reject Item</h3><p style={{fontSize:'0.85rem',color:'#888'}}>Donor will be notified with your reason</p></div>
+              <button className="btn btn-sm btn-outline" onClick={() => setRejectModal(null)}>✕</button>
+            </div>
+            <div style={{padding:'1.25rem'}}>
+              <label style={{display:'block',fontWeight:'600',marginBottom:'0.5rem',fontSize:'0.88rem'}}>Reason for rejection <span style={{color:'#dc3545'}}>*</span></label>
+              <textarea
+                value={rejectReason}
+                onChange={e => setRejectReason(e.target.value)}
+                placeholder="e.g. Image is unclear, item description is incomplete, item does not meet guidelines..."
+                rows={4}
+                style={{width:'100%',border:'1.5px solid #e0e0e0',borderRadius:'8px',padding:'0.75rem',fontSize:'0.9rem',fontFamily:'inherit',resize:'vertical',boxSizing:'border-box'}}
+              />
+              <div style={{display:'flex',gap:'0.75rem',justifyContent:'flex-end',marginTop:'1rem'}}>
+                <button className="btn btn-outline" onClick={() => setRejectModal(null)}>Cancel</button>
+                <button className="btn btn-danger" onClick={handleRejectItem}>Reject & Notify Donor</button>
               </div>
             </div>
           </div>
-        )}
+        </div>
+      )}
+
+      {/* Admin Chat Viewer Modal — styled like ChatModal */}
+        {showChat && selectedChat && selectedChatData && (() => {
+          const msgs = selectedChatData.messages || [];
+          return (
+            <div className="chat-modal-overlay" onClick={() => setShowChat(false)}>
+              <div className="chat-modal" onClick={e => e.stopPropagation()}>
+
+                {/* Header */}
+                <div className="chat-header">
+                  <div>
+                    <h3>💬 {selectedItemName}</h3>
+                    <p className="chat-subtitle">
+                      {selectedChatData.donor?.name} ↔ {selectedChatData.receiver?.name}
+                    </p>
+                  </div>
+                  <div className="chat-header-actions">
+                    {selectedChatData.reported && (
+                      <span className="report-badge" style={{marginRight:'0.5rem'}}>
+                        <FiAlertTriangle /> Reported
+                      </span>
+                    )}
+                    <span className={`chat-status-badge ${selectedChatData.status === 'completed' ? 'badge-completed' : 'badge-active'}`}>
+                      {selectedChatData.status === 'completed' ? '✅ Closed' : '🟢 Active'}
+                    </span>
+                    <button className="btn-header btn-close-chat" onClick={() => setShowChat(false)}>
+                      ✕ Close
+                    </button>
+                  </div>
+                </div>
+
+                {/* Report reason banner */}
+                {selectedChatData.reported && (
+                  <div className="admin-report-banner">
+                    <FiAlertTriangle />
+                    <span>⚠️ Reported — Reason: <strong>{selectedChatData.reportReason || 'Not specified'}</strong></span>
+                  </div>
+                )}
+
+                {/* Messages */}
+                <div className="chat-messages">
+                  {msgs.length === 0
+                    ? <p className="no-messages">No messages yet.</p>
+                    : msgs.map((msg, idx) => {
+                        const isBot    = msg.sender === 'bot' || msg.senderType === 'bot';
+                        const isDonor  = msg.sender?.toString() === selectedChatData.donor?._id?.toString();
+                        const bubbleCls = isBot ? 'bot' : isDonor ? 'sent' : 'received';
+                        const label     = isBot ? '🤖 Donateo Assistant' : isDonor ? `Donor (${selectedChatData.donor?.name})` : `Receiver (${selectedChatData.receiver?.name})`;
+                        return (
+                          <div key={idx} className={`chat-bubble-wrap ${bubbleCls}`}>
+                            {isBot ? (
+                              <div className="chat-bubble bot-bubble">
+                                <span className="bubble-sender">{label}</span>
+                                <p>{msg.content || msg.text}</p>
+                                <span className="bubble-time">{new Date(msg.timestamp || msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                              </div>
+                            ) : (
+                              <div className={`chat-bubble ${bubbleCls === 'sent' ? 'sent-bubble' : 'received-bubble'}`}>
+                                <span className="bubble-sender">{label}</span>
+                                <p>{msg.content || msg.text}</p>
+                                <span className="bubble-time">{new Date(msg.timestamp || msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                  }
+                </div>
+
+                {/* Footer info */}
+                <div className="admin-chat-footer">
+                  <span>👁️ Admin View Only — Read Only</span>
+                  {selectedChatData.pickupDetails?.location && (
+                    <span>📍 Pickup: {selectedChatData.pickupDetails.location} · {selectedChatData.pickupDetails.date} · {selectedChatData.pickupDetails.time}</span>
+                  )}
+                </div>
+
+              </div>
+            </div>
+          );
+        })()}
 
       </div>
     </div>

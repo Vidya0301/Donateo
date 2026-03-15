@@ -1104,3 +1104,42 @@
   color: #888;
   margin-top: 0.5rem;
 }
+
+/* ── Admin Item Action Buttons ── */
+.item-actions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+/* ── Admin Chat Viewer (reuses ChatModal styles) ── */
+.admin-chat-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.75rem 1.25rem;
+  background: #f8f8f8;
+  border-top: 1px solid var(--light-gray);
+  font-size: 0.8rem;
+  color: #888;
+}
+
+.badge-active    { background: #e8f5e9; color: #2e7d32; padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.75rem; font-weight: 700; }
+.badge-completed { background: #f0f0f0; color: #666;    padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.75rem; font-weight: 700; }
+
+.btn-close-chat {
+  background: #f0f0f0;
+  border: none;
+  border-radius: 8px;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: #555;
+  transition: background 0.2s;
+}
+.btn-close-chat:hover { background: #e0e0e0; }

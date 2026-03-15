@@ -73,11 +73,15 @@ const NotificationBell = () => {
     welcome:             '🌱',
     new_item_posted:     '🆕',
     item_approved:       '✅',
+    item_rejected:       '❌',
+    request_denied:      '🚫',
     item_requested:      '🔔',
+    request_received:    '🔔',
     request_approved:    '🎉',
     pickup_details_set:  '📍',
     item_handed_over:    '📦',
     item_received:       '💚',
+    pickup_reminder:     '⏰',
     new_user_registered: '👤'
   }[type] || '🔔');
 

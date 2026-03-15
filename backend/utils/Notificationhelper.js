@@ -5,14 +5,14 @@ const User = require('../models/User');
 // Maps notification type → preference key
 const PREF_MAP = {
   item_approved:    'itemApproved',
+  item_rejected:    'itemApproved',    // reuse itemApproved pref
   request_received: 'requestReceived',
   request_approved: 'requestApproved',
-  request_denied:   'requestApproved', // reuse requestApproved pref
+  request_denied:   'requestApproved',
   pickup_scheduled: 'pickupScheduled',
   item_handed_over: 'itemHandedOver',
   item_received:    'itemReceived',
   pickup_reminder:  'pickupReminder',
-  request_denied:   'requestReceived'
 };
 
 /**

@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:5001/api';
+const API_URL = process.env.REACT_APP_API_URL
+  ? `${process.env.REACT_APP_API_URL}/api`
+  : 'http://localhost:5001/api';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -45,11 +47,14 @@ export const itemsAPI = {
 };
 
 export const adminAPI = {
+  getSettings:    ()       => api.get('/admin/settings'),
+  updateSettings: (data)   => api.put('/admin/settings', data),
   getUsers:        ()             => api.get('/admin/users'),
   updateUserStatus:(id, data)     => api.put(`/admin/users/${id}`, data),
   deleteUser:      (id)           => api.delete(`/admin/users/${id}`),
   getItems:        (params)       => api.get('/admin/items', { params }),
   approveItem:     (id)           => api.put(`/admin/items/${id}/approve`),
+  rejectItem:      (id, reason)   => api.put(`/admin/items/${id}/reject`, { reason }),
   removeItem:      (id)           => api.delete(`/admin/items/${id}`),
   getStats:        ()             => api.get('/admin/stats'),
   getPublicStats:  ()             => api.get('/admin/public-stats')

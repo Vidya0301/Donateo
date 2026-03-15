@@ -6,9 +6,12 @@ const {
   deleteUser,
   getAllItems,
   approveItem,
+  rejectItem,
   removeItem,
   getDashboardStats,
-  getPublicStats
+  getPublicStats,
+  getSettings,
+  updateSettings
 } = require('../controllers/adminController');
 const { protect, admin } = require('../middleware/auth');
 
@@ -27,9 +30,14 @@ router.delete('/users/:id', deleteUser);
 // Item management
 router.get('/items', getAllItems);
 router.put('/items/:id/approve', approveItem);
+router.put('/items/:id/reject', rejectItem);
 router.delete('/items/:id', removeItem);
 
 // Dashboard stats
 router.get('/stats', getDashboardStats);
+
+// App settings
+router.get('/settings', protect, admin, getSettings);
+router.put('/settings', protect, admin, updateSettings);
 
 module.exports = router;

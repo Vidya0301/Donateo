@@ -1,6 +1,8 @@
 const Item = require('../models/Item');
+const AppSettings = require('../models/AppSettings');
+const { setItemExpiry, getExpiryDays } = require('../utils/itemExpiry');
 const User = require('../models/User');
-const { notify, notifyAdmins } = require('../utils/Notificationhelper');
+const { notify, notifyAdmins } = require('../utils/notificationHelper');
 
 const getAllUsers = async (req, res) => {
   try {
@@ -62,6 +64,7 @@ const approveItem = async (req, res) => {
     item.isApproved = true;
     item.status = 'available';
     await item.save();
+    await setItemExpiry(item._id); // set expiry countdown
 
     // Notify donor that their item was approved
     await notify({
@@ -127,4 +130,57 @@ const getPublicStats = async (req, res) => {
   }
 };
 
-module.exports = { getAllUsers, updateUserStatus, deleteUser, getAllItems, approveItem, removeItem, getDashboardStats, getPublicStats };
+
+// GET /api/admin/settings — get all app settings
+const getSettings = async (req, res) => {
+  try {
+    const expiryDays = await getExpiryDays();
+    res.json({ itemExpiryDays: expiryDays });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// PUT /api/admin/settings — update app settings
+const updateSettings = async (req, res) => {
+  try {
+    const { itemExpiryDays } = req.body;
+    await AppSettings.findOneAndUpdate(
+      { key: 'itemExpiryDays' },
+      { value: Number(itemExpiryDays) },
+      { upsert: true, new: true }
+    );
+    res.json({ message: 'Settings saved', itemExpiryDays });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
+// PUT /api/admin/items/:id/reject — reject item with reason
+const rejectItem = async (req, res) => {
+  try {
+    const { reason } = req.body;
+    const item = await Item.findById(req.params.id).populate('donor', 'name email');
+    if (!item) return res.status(404).json({ message: 'Item not found' });
+
+    await notify({
+      recipientId:   item.donor._id,
+      type:          'item_rejected',
+      title:         `Your item "${item.itemName}" was not approved`,
+      message:       `Unfortunately, your item "${item.itemName}" was rejected. Reason: ${reason || 'Does not meet our guidelines'}`,
+      link:          '/dashboard',
+      emailTemplate: 'item_rejected',
+      emailData:     [item.donor.name, item.itemName, reason || 'Does not meet our guidelines']
+    });
+
+    await Item.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Item rejected and removed' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+module.exports = { getAllUsers, updateUserStatus, deleteUser, getAllItems, approveItem, rejectItem, removeItem, getDashboardStats, getPublicStats, getSettings,
+  updateSettings
+};

@@ -40,7 +40,7 @@ const createItem = async (req, res) => {
 
 const getItems = async (req, res) => {
   try {
-    const { category, city, status, search, condition, sortBy } = req.query;
+    const { category, city, status, search, condition, sortBy, page = 1, limit = 9 } = req.query;
 
     let query = { isApproved: true };
 
@@ -61,10 +61,19 @@ const getItems = async (req, res) => {
     if (sortBy === 'az')     sort = { itemName:    1 };
     if (sortBy === 'za')     sort = { itemName:   -1 };
 
-    const items = await Item.find(query)
-      .populate('donor', 'name email')
-      .populate('receiver', 'name email')
-      .sort(sort);
+    const pageNum  = parseInt(page)  || 1;
+    const limitNum = parseInt(limit) || 9;
+    const skip     = (pageNum - 1) * limitNum;
+
+    const [items, total] = await Promise.all([
+      Item.find(query)
+        .populate('donor', 'name email')
+        .populate('receiver', 'name email')
+        .sort(sort)
+        .skip(skip)
+        .limit(limitNum),
+      Item.countDocuments(query)
+    ]);
 
     const donorIds = [...new Set(items.map(i => i.donor?._id?.toString()).filter(Boolean))];
     const completedCounts = await Promise.all(
@@ -79,14 +88,19 @@ const getItems = async (req, res) => {
     const itemsWithBadge = items.map(item => {
       const obj = item.toObject();
       obj.donorCompletedCount = countMap[item.donor?._id?.toString()] || 0;
-      // Flag if the current user has an active request on this item
       obj.userHasRequested = req.user
         ? obj.requests?.some(r => r.user?.toString() === req.user._id.toString())
         : false;
       return obj;
     });
 
-    res.json(itemsWithBadge);
+    res.json({
+      items: itemsWithBadge,
+      total,
+      page:       pageNum,
+      totalPages: Math.ceil(total / limitNum),
+      hasMore:    pageNum < Math.ceil(total / limitNum)
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

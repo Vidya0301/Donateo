@@ -22,6 +22,8 @@ const Dashboard = () => {
   const [donationChats, setDonationChats]     = useState({});
   const [wishlist, setWishlist]               = useState([]);
   const [ratingModal, setRatingModal]         = useState(null);
+  const [editItem, setEditItem]               = useState(null); // item being edited
+  const [editLoading, setEditLoading]         = useState(false);
   const [ratedItems, setRatedItems]           = useState({});
 
   useEffect(() => { fetchUserItems(); }, []);
@@ -92,6 +94,22 @@ const Dashboard = () => {
     catch { toast.error('Failed to delete item'); }
   };
 
+  const handleEditSave = async () => {
+    try {
+      setEditLoading(true);
+      await itemsAPI.updateItem(editItem._id, {
+        itemName:    editItem.itemName,
+        description: editItem.description,
+        condition:   editItem.condition,
+        category:    editItem.category,
+      });
+      toast.success('✅ Item updated!');
+      setEditItem(null);
+      fetchUserItems();
+    } catch (err) { toast.error('Failed to update item'); }
+    finally { setEditLoading(false); }
+  };
+
   const handleOpenDonorChat = (itemId, itemName) => {
     const chat = donationChats[itemId];
     if (chat) { setSelectedChat(chat._id); setSelectedItemName(itemName); setShowChat(true); }
@@ -158,7 +176,8 @@ const Dashboard = () => {
       pending:   <span className="badge badge-warning">Pending Approval</span>,
       available: <span className="badge badge-success">Available</span>,
       requested: <span className="badge badge-info">Requested</span>,
-      donated:   <span className="badge badge-secondary">Donated</span>
+      donated:   <span className="badge badge-secondary">Donated</span>,
+      expired:   <span className="badge" style={{background:'#f0f0f0',color:'#888'}}>⏱ Expired</span>
     }[status];
   };
 
@@ -180,6 +199,14 @@ const Dashboard = () => {
   const formatDate = (dateStr) => {
     if (!dateStr) return '';
     return new Date(dateStr).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  };
+
+
+  const CONDITION_STYLES = {
+    'new':      { label: '🌟 New',       cls: 'condition-new' },
+    'like-new': { label: '✨ Like New',  cls: 'condition-likenew' },
+    'good':     { label: '👍 Good',      cls: 'condition-good' },
+    'fair':     { label: '🔄 Fair',      cls: 'condition-fair' },
   };
 
   const completedDonations = myDonations.filter(i => i.donorConfirmed && i.receiverConfirmed); // for certificates
@@ -266,6 +293,9 @@ const Dashboard = () => {
                       </div>
                       {item.category === 'clothes' && (item.gender || item.clothingSize) && (
                         <div className="item-extra-tags">
+                          {item.condition && CONDITION_STYLES[item.condition] && (
+                            <span className={`extra-tag ${CONDITION_STYLES[item.condition].cls}`}>{CONDITION_STYLES[item.condition].label}</span>
+                          )}
                           {item.gender && <span className="extra-tag gender-tag">{item.gender === 'male' ? '👨' : item.gender === 'female' ? '👩' : '👧'} {item.gender.charAt(0).toUpperCase() + item.gender.slice(1)}</span>}
                           {item.clothingSize && <span className="extra-tag size-tag">Size: {item.clothingSize}</span>}
                         </div>
@@ -362,8 +392,13 @@ const Dashboard = () => {
                           )}
                         </div>
                       )}
-                      {item.status === 'pending' && (
-                        <button onClick={() => handleDeleteItem(item._id)} className="btn btn-sm btn-outline">Delete</button>
+                      {(item.status === 'pending' || item.status === 'available') && (
+                        <div style={{display:'flex',gap:'0.4rem'}}>
+                          <button onClick={() => setEditItem({...item})} className="btn btn-sm btn-primary">✏️ Edit</button>
+                          {item.status === 'pending' && (
+                            <button onClick={() => handleDeleteItem(item._id)} className="btn btn-sm btn-outline">Delete</button>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -392,8 +427,11 @@ const Dashboard = () => {
                         <span className="category-tag">{item.category}</span>
                         <span className="location-tag"><FiMapPin /> {item.location?.city}</span>
                       </div>
-                      <p className="donor-info"><FiUser /> Donated by: <Link to={`/donor/${item.donor?._id}`} className="donor-profile-link"><strong>{item.donor?.name}</strong></Link></p>
-                      {(rpickup?.location || item.pickupScheduled) && (
+                      {item.condition && CONDITION_STYLES[item.condition] && (
+                        <div className="item-extra-tags">
+                          <span className={`extra-tag ${CONDITION_STYLES[item.condition].cls}`}>{CONDITION_STYLES[item.condition].label}</span>
+                        </div>
+                      )}
                         <div className="pickup-details-card">
                           <p className="pickup-title">📦 Pickup Details</p>
                           <p><FiMapPin /> <strong>Location:</strong> {rpickup?.location || item.pickupLocation}</p>
@@ -519,6 +557,50 @@ const Dashboard = () => {
             </div>
           )}
         </div>
+
+        {/* Edit Item Modal */}
+        {editItem && (
+          <div className="rating-overlay" onClick={() => setEditItem(null)}>
+            <div className="rating-modal" style={{maxWidth:'500px'}} onClick={e => e.stopPropagation()}>
+              <h2 style={{color:'var(--forest-green)',marginBottom:'1.25rem'}}>✏️ Edit Item</h2>
+              <div style={{display:'flex',flexDirection:'column',gap:'1rem'}}>
+                <div>
+                  <label style={{display:'block',fontWeight:'600',fontSize:'0.88rem',marginBottom:'0.4rem'}}>Item Name</label>
+                  <input className="form-control" value={editItem.itemName}
+                    onChange={e => setEditItem(p => ({...p, itemName: e.target.value}))} />
+                </div>
+                <div>
+                  <label style={{display:'block',fontWeight:'600',fontSize:'0.88rem',marginBottom:'0.4rem'}}>Description</label>
+                  <textarea className="form-control" rows={3} value={editItem.description}
+                    onChange={e => setEditItem(p => ({...p, description: e.target.value}))} />
+                </div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem'}}>
+                  <div>
+                    <label style={{display:'block',fontWeight:'600',fontSize:'0.88rem',marginBottom:'0.4rem'}}>Condition</label>
+                    <select className="form-control" value={editItem.condition}
+                      onChange={e => setEditItem(p => ({...p, condition: e.target.value}))}>
+                      <option value="new">New</option>
+                      <option value="like-new">Like New</option>
+                      <option value="good">Good</option>
+                      <option value="fair">Fair</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{display:'block',fontWeight:'600',fontSize:'0.88rem',marginBottom:'0.4rem'}}>Category</label>
+                    <input className="form-control" value={editItem.category}
+                      onChange={e => setEditItem(p => ({...p, category: e.target.value}))} />
+                  </div>
+                </div>
+              </div>
+              <div style={{display:'flex',gap:'0.75rem',justifyContent:'flex-end',marginTop:'1.5rem'}}>
+                <button className="btn btn-outline" onClick={() => setEditItem(null)}>Cancel</button>
+                <button className="btn btn-primary" onClick={handleEditSave} disabled={editLoading}>
+                  {editLoading ? 'Saving...' : '💾 Save Changes'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Chat Modal */}
         {showChat && selectedChat && (
