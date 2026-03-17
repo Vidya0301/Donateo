@@ -1,6 +1,6 @@
 const Chat = require('../models/Chat');
 const Item = require('../models/Item');
-const { notify } = require('../utils/Notificationhelper');
+const { notify } = require('../utils/notificationHelper');
 
 const PROHIBITED_PATTERNS = {
   money: /\b(money|payment|pay|price|cost|rupees|dollars|₹|\$|cash|paid|charge|fee|amount|buy|sell)\b/i,
